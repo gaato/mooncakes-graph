@@ -22,7 +22,10 @@ struct Scene {
   mut hidden : Array[Bool]
   mut hub : Array[Bool]
   mut metrics : @graph.Metrics
+  /// Drawn radius: `base_radius`, capped lower in a focus layout where a
+  /// hub would otherwise cover the few modules around it.
   mut radius : Array[Double]
+  mut base_radius : Array[Double]
   mut color : Array[String]
   /// Last known position per node, carried across simulation rebuilds.
   mut px : Array[Double]
@@ -48,6 +51,11 @@ struct Scene {
   mut selected : Int32
   /// Selected node and everything that depends on it.
   mut impact : Array[Bool]
+  /// Everything the selected node depends on, toggles notwithstanding.
+  mut upstream : Array[Bool]
+  /// Transitive dependents counted over the whole graph, for sizing nodes
+  /// that a toggle leaves out of `metrics`.
+  mut full_transitive : Array[Int32]
   mut impact_count : Int32
   mut pointer_down : Bool
   mut dragged : Bool
@@ -76,6 +84,7 @@ let scene : Scene = {
   hub: [],
   metrics: { direct: [], transitive: [], owners: [], },
   radius: [],
+  base_radius: [],
   color: [],
   px: [],
   py: [],
@@ -94,6 +103,8 @@ let scene : Scene = {
   near: [],
   selected: NO_NODE,
   impact: [],
+  upstream: [],
+  full_transitive: [],
   impact_count: 0,
   pointer_down: false,
   dragged: false,
@@ -138,6 +149,8 @@ fn load_graph(text : String) -> Int32 {
   scene.py = Array::make(n, 0.0)
   scene.placed = Array::make(n, false)
   scene.impact = Array::make(n, false)
+  scene.upstream = Array::make(n, false)
+  scene.full_transitive = graph.metrics().transitive
   scene.near = Array::make(n, false)
   rebuild()
   skipped
@@ -161,8 +174,13 @@ fn rebuild() -> Unit {
     toggled[i] || (!scene.show_isolated && scene.isolated[i])
   })
   scene.metrics = graph.metrics(excluded=scene.hidden)
-  scene.radius = Array::makei(n, i => {
-    let r = 2.5 + 1.6 * Double::from_int(scene.metrics.transitive[i]).sqrt()
+  scene.base_radius = Array::makei(n, i => {
+    let t = if scene.hidden[i] {
+      scene.full_transitive[i]
+    } else {
+      scene.metrics.transitive[i]
+    }
+    let r = 2.5 + 1.6 * Double::from_int(t).sqrt()
     if r > 40.0 {
       40.0
     } else {
@@ -183,14 +201,13 @@ fn relayout() -> Unit {
   save_positions()
   select_node(scene.selected)
   let focus = scene.focused && scene.selected != NO_NODE
+  scene.radius = if focus {
+    scene.base_radius.map(r => r.min(14.0))
+  } else {
+    scene.base_radius
+  }
   let in_layout = if focus {
-    let m = scene.impact.copy()
-    for d in graph.deps[scene.selected] {
-      if !scene.hidden[d] {
-        m[d] = true
-      }
-    }
-    m
+    Array::makei(n, i => scene.impact[i] || scene.upstream[i])
   } else {
     scene.hidden.map(h => !h)
   }
@@ -362,6 +379,7 @@ fn node_at(sx : Double, sy : Double) -> Int32 {
 fn select_node(i : Int32) -> Unit {
   guard scene.graph is Some(graph) else { return }
   scene.impact.fill(false)
+  scene.upstream.fill(false)
   scene.selected = i
   scene.impact_count = 0
   if i == NO_NODE {
@@ -371,6 +389,9 @@ fn select_node(i : Int32) -> Unit {
   for d in graph.transitive_dependents(i, excluded=scene.hidden) {
     scene.impact[d] = true
     scene.impact_count += 1
+  }
+  for d in graph.transitive_deps(i) {
+    scene.upstream[d] = true
   }
 }
 

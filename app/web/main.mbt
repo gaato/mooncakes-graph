@@ -517,7 +517,7 @@ fn status_view(m : Model) -> Html {
           let hint = match (m.hovered, m.selected) {
             (Some(name), _) => name
             (None, Some(name)) if scene.focus_layout =>
-              "\{shown} modules: \{name}, what depends on it and what it uses · edges flow toward the module depended on"
+              "\{shown} modules: \{name}, what depends on it (orange) and what it depends on (blue) · edges flow toward the module depended on"
             (None, _) =>
               "\{shown} of \{g.size()} modules · scroll or pinch to zoom, drag to pan"
           }

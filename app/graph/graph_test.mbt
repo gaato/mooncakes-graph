@@ -66,3 +66,12 @@ test "exclusion cuts paths through a node" {
   assert_eq(g.transitive_dependents(0), [1, 5, 2, 4])
   assert_eq(g.transitive_dependents(0, excluded=hidden), [5])
 }
+
+///|
+test "transitive deps" {
+  let g = sample()
+  // c/tool -> b/app -> a/util -> a/core, and c/tool -> a/util.
+  assert_eq(g.transitive_deps(4), [2, 1, 0])
+  assert_eq(g.transitive_deps(4, excluded=g.mask(["a/util"])), [2])
+  assert_eq(g.transitive_deps(0), [])
+}

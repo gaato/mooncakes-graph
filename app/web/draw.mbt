@@ -66,14 +66,25 @@ fn draw() -> Unit {
   let index = scene.sim_index
   let selecting = scene.selected != NO_NODE
   let hovered = scene.hovered
-  let highlighted = fn(a : Int32, b : Int32) {
+  // 0: plain, 1: into the selection (or touching the hovered node),
+  // 2: out of the selection toward what it depends on.
+  let kind = fn(a : Int32, b : Int32) -> Int32 {
     if selecting {
-      // An edge on a dependency path into the selection.
-      scene.impact[a] && scene.impact[b]
+      if scene.impact[a] && scene.impact[b] {
+        1
+      } else if (a == scene.selected || scene.upstream[a]) && scene.upstream[b] {
+        2
+      } else {
+        0
+      }
+    } else if a == hovered || b == hovered {
+      1
     } else {
-      a == hovered || b == hovered
+      0
     }
   }
+  let impact_color = if dark { "#fbbf24" } else { "#d97706" }
+  let upstream_color = if dark { "#60a5fa" } else { "#2563eb" }
 
   // Edges: one faint batch, then the highlighted ones on top. Edges that
   // matter (a focus layout, a highlight) flow from a module toward what it
@@ -88,11 +99,11 @@ fn draw() -> Unit {
       set_dash(ctx, 0.0, 0.0, 0.0)
     }
   }
-  let batch = fn(lit : Bool) {
+  let batch = fn(want : Int32) {
     ctx.begin_path()
     for a in scene.sim_nodes {
       for b in graph.deps[a] {
-        if index[b] != NO_NODE && highlighted(a, b) == lit {
+        if index[b] != NO_NODE && kind(a, b) == want {
           ctx.move_to(xs[index[a]], ys[index[a]])
           ctx.line_to(xs[index[b]], ys[index[b]])
         }
@@ -118,18 +129,25 @@ fn draw() -> Unit {
     )
   }
   flowing(scene.focus_layout)
-  batch(false)
+  batch(0)
   if selecting || hovered != NO_NODE {
     ctx.set_line_width(1.4 / scene.scale)
-    ctx.set_stroke_style(style(if dark { "#fbbf24" } else { "#d97706" }))
     flowing(true)
-    batch(true)
+    ctx.set_stroke_style(style(upstream_color))
+    batch(2)
+    ctx.set_stroke_style(style(impact_color))
+    batch(1)
   }
   flowing(false)
 
   // Nodes.
   for k, i in scene.sim_nodes {
-    let faded = (selecting && !scene.focus_layout && !scene.impact[i]) ||
+    let faded = (
+        selecting &&
+        !scene.focus_layout &&
+        !scene.impact[i] &&
+        !scene.upstream[i]
+      ) ||
       (!selecting && hovered != NO_NODE && !scene.near[i])
     let fade = if faded { 0.15 } else { 1.0 }
     let alpha = fade * (if graph.yanked[i] { 0.35 } else { 1.0 })
@@ -143,11 +161,11 @@ fn draw() -> Unit {
 
   // Without motion, arrowheads show the direction on the same edges.
   let arrow = 7.0 / scene.scale
-  let heads = fn(lit : Bool) {
+  let heads = fn(want : Int32) {
     ctx.begin_path()
     for a in scene.sim_nodes {
       for b in graph.deps[a] {
-        if index[b] != NO_NODE && highlighted(a, b) == lit {
+        if index[b] != NO_NODE && kind(a, b) == want {
           arrow_head(
             ctx,
             xs[index[a]],
@@ -166,11 +184,13 @@ fn draw() -> Unit {
     ctx.set_fill_style(
       style(if dark { "rgba(148,163,184,0.7)" } else { "rgba(71,85,105,0.6)" }),
     )
-    heads(false)
+    heads(0)
   }
   if !animate && (selecting || hovered != NO_NODE) {
-    ctx.set_fill_style(style(if dark { "#fbbf24" } else { "#d97706" }))
-    heads(true)
+    ctx.set_fill_style(style(upstream_color))
+    heads(2)
+    ctx.set_fill_style(style(impact_color))
+    heads(1)
   }
   if selecting && index[scene.selected] != NO_NODE {
     let k = index[scene.selected]

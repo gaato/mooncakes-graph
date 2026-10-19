@@ -118,7 +118,28 @@ pub fn Graph::transitive_dependents(
   id : Int32,
   excluded? : Array[Bool],
 ) -> Array[Int32] {
-  let seen = Array::make(self.size(), false)
+  reach(self.dependents, id, excluded)
+}
+
+///|
+/// Modules that `id` depends on directly or through others, in BFS order
+/// (nearest first). Paths through `excluded` nodes are cut; `id` itself is
+/// never included.
+pub fn Graph::transitive_deps(
+  self : Graph,
+  id : Int32,
+  excluded? : Array[Bool],
+) -> Array[Int32] {
+  reach(self.deps, id, excluded)
+}
+
+///|
+fn reach(
+  edges : Array[Array[Int32]],
+  id : Int32,
+  excluded : Array[Bool]?,
+) -> Array[Int32] {
+  let seen = Array::make(edges.length(), false)
   seen[id] = true
   let order = []
   let mut head = 0
@@ -126,7 +147,7 @@ pub fn Graph::transitive_dependents(
   while head < queue.length() {
     let x = queue[head]
     head += 1
-    for y in self.dependents[x] {
+    for y in edges[x] {
       if seen[y] || (excluded is Some(e) && e[y]) {
         continue
       }
