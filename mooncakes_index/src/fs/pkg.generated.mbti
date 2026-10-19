@@ -1,0 +1,29 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "gaato/mooncakes_index/fs"
+
+import {
+  "gaato/mooncakes_index",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn index_dir() -> String?
+
+pub fn read(String) -> Index raise
+
+// Errors
+pub(all) suberror NotFound {
+  NotFound(String)
+} derive(@debug.Debug)
+pub fn NotFound::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) struct Index {
+  modules : Array[(String, Array[@mooncakes_index.VersionRecord])]
+  skipped : Int
+  fetched_at : Int64?
+}
+
+// Type aliases
+
+// Traits

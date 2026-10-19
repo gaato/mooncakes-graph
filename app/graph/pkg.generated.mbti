@@ -1,0 +1,40 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "gaato/mooncakes-graph/graph"
+
+import {
+  "gaato/mooncakes_index",
+}
+
+// Values
+pub let default_hubs : Array[String]
+
+// Errors
+
+// Types and methods
+pub struct Graph {
+  names : Array[String]
+  ids : Map[String, Int]
+  owners : Array[String]
+  current : Array[@mooncakes_index.VersionRecord]
+  yanked : Array[Bool]
+  deps : Array[Array[Int]]
+  dependents : Array[Array[Int]]
+  dangling : Int
+}
+pub fn Graph::edge_count(Self) -> Int
+pub fn Graph::from_records(ArrayView[@mooncakes_index.VersionRecord]) -> Self
+pub fn Graph::mask(Self, ArrayView[String]) -> Array[Bool]
+pub fn Graph::metrics(Self, excluded? : Array[Bool]) -> Metrics
+pub fn Graph::new(ArrayView[(String, Array[@mooncakes_index.VersionRecord])]) -> Self
+pub fn Graph::size(Self) -> Int
+pub fn Graph::transitive_dependents(Self, Int, excluded? : Array[Bool]) -> Array[Int]
+
+pub struct Metrics {
+  direct : Array[Int]
+  transitive : Array[Int]
+  owners : Array[Int]
+}
+
+// Type aliases
+
+// Traits

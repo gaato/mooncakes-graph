@@ -1,3 +1,5 @@
 members = [
   "app",
+  "mooncakes_index",
+  "force",
 ]

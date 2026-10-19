@@ -6,6 +6,7 @@ as the data source for the web spike.
 
   oracle.py versions        # natural JSONL, one line per version
   oracle.py stats           # gate numbers as JSON
+  oracle.py top KEY         # every module ranked by KEY, TSV like `top -n 0`
 """
 import glob
 import json
@@ -19,16 +20,24 @@ def index_dir():
 
 
 def records():
-    for path in sorted(glob.glob(os.path.join(index_dir(), "*", "*.index"))):
+    """All versions, modules sorted by name, versions in file order."""
+    modules = []
+    for path in glob.glob(os.path.join(index_dir(), "*", "*.index")):
+        versions = []
         with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
                     continue
                 try:
-                    yield json.loads(line)
+                    versions.append(json.loads(line))
                 except json.JSONDecodeError:
                     continue
+        if versions:
+            modules.append((versions[0]["name"], versions))
+    modules.sort(key=lambda m: m[0])
+    for _, versions in modules:
+        yield from versions
 
 
 def dep_version(v):
@@ -81,6 +90,35 @@ def stats(rows):
     }
 
 
+def metrics(rows):
+    by, cur = current(rows)
+    names = set(by)
+    rev = {n: set() for n in names}
+    for m, d in cur.items():
+        for t in d["deps"]:
+            if t in names and t != m:
+                rev[t].add(m)
+
+    def owner(n):
+        return n.split("/", 1)[0]
+
+    out = {}
+    for t in names:
+        seen, stack = {t}, [t]
+        while stack:
+            x = stack.pop()
+            for y in rev[x]:
+                if y not in seen:
+                    seen.add(y)
+                    stack.append(y)
+        out[t] = {
+            "direct": len(rev[t]),
+            "transitive": len(seen) - 1,
+            "owners": len({owner(d) for d in rev[t]} - {owner(t)}),
+        }
+    return out
+
+
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "stats"
     rows = [natural(d) for d in records()]
@@ -90,6 +128,15 @@ def main():
     elif cmd == "stats":
         json.dump(stats(rows), sys.stdout, indent=2)
         sys.stdout.write("\n")
+    elif cmd == "top":
+        key = sys.argv[2] if len(sys.argv) > 2 else "transitive"
+        m = metrics(rows)
+        # Byte order on names, like the CLI.
+        order = sorted(m, key=lambda n: (-m[n][key], n.encode()))
+        sys.stdout.write("module\tdirect\ttransitive\towners\n")
+        for n in order:
+            r = m[n]
+            sys.stdout.write(f"{n}\t{r['direct']}\t{r['transitive']}\t{r['owners']}\n")
     else:
         sys.exit(f"unknown command: {cmd}")
 

@@ -1,0 +1,13 @@
+import {
+  "gaato/mooncakes_index/fs" @index_fs,
+  "gaato/mooncakes-graph/graph",
+  "cli/core/cli" @args,
+  "gaato/mooncakes_index",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/x/sys",
+}
+
+supported_targets = "native+wasm"
+
+pkgtype(kind: "executable")

@@ -1,0 +1,9 @@
+import {
+  "gaato/mooncakes_index",
+  "moonbitlang/x/fs" @xfs,
+  "moonbitlang/core/env",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/string",
+}
+
+supported_targets = "native+js+wasm"
