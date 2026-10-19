@@ -22,6 +22,18 @@ extern "js" fn encode_module(s : String) -> String =
   #|(s) => encodeURIComponent(s).replace(/%2F/g, "/")
 
 ///|
+extern "js" fn capture_pointer(id : String, pointer : Int32) -> Unit =
+  #|(id, p) => { try { document.getElementById(id)?.setPointerCapture(p); } catch {} }
+
+///|
+fn pointer_id(e : @dom.MouseEvent) -> Int32 {
+  match e.to_pointer_event() {
+    Some(p) => p.get_pointer_id()
+    None => 0
+  }
+}
+
+///|
 extern "js" fn console_warn(s : String) -> Unit = "(s) => console.warn(s)"
 
 ///|
@@ -207,56 +219,94 @@ fn update(model : Model, msg : Msg, _ : Emit[Msg]) -> (Model, Cmd) {
     Wheel(e) => {
       e.prevent_default()
       release_camera()
-      let k = @math.exp(-e.get_delta_y() * 0.0015)
-      let k = (scene.scale * k).clamp(min=0.02, max=20.0) / scene.scale
-      let ox = e.get_offset_x()
-      let oy = e.get_offset_y()
-      scene.cam_x = ox - (ox - scene.cam_x) * k
-      scene.cam_y = oy - (oy - scene.cam_y) * k
-      scene.scale = scene.scale * k
+      zoom_at(
+        @math.exp(-e.get_delta_y() * 0.0015),
+        e.get_offset_x(),
+        e.get_offset_y(),
+      )
       (model, @rabbita.none)
     }
     PointerDown(e) => {
-      scene.pointer_down = true
-      scene.dragged = false
-      scene.down_x = e.get_client_x()
-      scene.down_y = e.get_client_y()
-      scene.last_x = scene.down_x
-      scene.last_y = scene.down_y
+      let id = pointer_id(e)
+      let (x, y) = (e.get_offset_x(), e.get_offset_y())
+      capture_pointer("graph", id)
+      scene.pointers[id] = (x, y)
+      if scene.pointers.length() == 1 {
+        scene.pointer_down = true
+        scene.dragged = false
+        scene.down_x = x
+        scene.down_y = y
+        scene.last_x = x
+        scene.last_y = y
+      } else {
+        // A second finger: this is a pinch, never a tap.
+        scene.dragged = true
+        release_camera()
+        start_pinch()
+      }
       (model, @rabbita.none)
     }
     PointerMove(e) => {
-      let (cx, cy) = (e.get_client_x(), e.get_client_y())
-      if scene.pointer_down {
-        if (cx - scene.down_x).abs() + (cy - scene.down_y).abs() > 4.0 {
+      let id = pointer_id(e)
+      let (x, y) = (e.get_offset_x(), e.get_offset_y())
+      if scene.pointers.contains(id) {
+        scene.pointers[id] = (x, y)
+      }
+      if scene.pointers.length() >= 2 {
+        if pinch_geometry() is Some((d, mx, my)) && scene.pinch_dist > 0.0 {
+          scene.cam_x += mx - scene.pinch_x
+          scene.cam_y += my - scene.pinch_y
+          zoom_at(d / scene.pinch_dist, mx, my)
+          scene.pinch_dist = d
+          scene.pinch_x = mx
+          scene.pinch_y = my
+        }
+        (model, @rabbita.none)
+      } else if scene.pointer_down {
+        if (x - scene.down_x).abs() + (y - scene.down_y).abs() > 4.0 {
           scene.dragged = true
           release_camera()
         }
         if scene.dragged {
-          scene.cam_x += cx - scene.last_x
-          scene.cam_y += cy - scene.last_y
+          scene.cam_x += x - scene.last_x
+          scene.cam_y += y - scene.last_y
         }
-        scene.last_x = cx
-        scene.last_y = cy
+        scene.last_x = x
+        scene.last_y = y
         (model, @rabbita.none)
       } else {
-        let i = node_at(e.get_offset_x(), e.get_offset_y())
+        let i = node_at(x, y)
         set_hovered(i)
         ({ ..model, hovered: name_of(i), }, @rabbita.none)
       }
     }
     PointerUp(e) => {
-      let was_click = scene.pointer_down && !scene.dragged
-      scene.pointer_down = false
-      scene.dragged = false
-      if was_click {
-        let i = node_at(e.get_offset_x(), e.get_offset_y())
-        select_and_push(model, name_of(i))
-      } else {
-        (model, @rabbita.none)
+      let id = pointer_id(e)
+      let was_click = scene.pointer_down &&
+        !scene.dragged &&
+        scene.pointers.length() == 1
+      scene.pointers.remove(id)
+      match scene.pointers.values().next() {
+        // One finger left after a pinch: keep panning from where it is.
+        Some((x, y)) => {
+          scene.last_x = x
+          scene.last_y = y
+          (model, @rabbita.none)
+        }
+        None => {
+          scene.pointer_down = false
+          scene.dragged = false
+          if was_click {
+            let i = node_at(e.get_offset_x(), e.get_offset_y())
+            select_and_push(model, name_of(i))
+          } else {
+            (model, @rabbita.none)
+          }
+        }
       }
     }
     PointerLeave => {
+      scene.pointers.clear()
       scene.pointer_down = false
       set_hovered(NO_NODE)
       ({ ..model, hovered: None, }, @rabbita.none)
@@ -428,7 +478,7 @@ fn status_view(m : Model) -> Html {
           let hint = match m.hovered {
             Some(name) => name
             None =>
-              "\{shown} of \{g.size()} modules · scroll to zoom, drag to pan"
+              "\{shown} of \{g.size()} modules · scroll or pinch to zoom, drag to pan"
           }
           div(class="status", hint)
         }

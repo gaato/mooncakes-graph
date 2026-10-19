@@ -50,6 +50,12 @@ struct Scene {
   mut down_y : Double
   mut last_x : Double
   mut last_y : Double
+  /// Active pointers (touches) by pointerId, in canvas CSS pixels.
+  pointers : Map[Int32, (Double, Double)]
+  /// Finger distance and midpoint at the previous pinch step.
+  mut pinch_dist : Double
+  mut pinch_x : Double
+  mut pinch_y : Double
 }
 
 ///|
@@ -88,6 +94,10 @@ let scene : Scene = {
   down_y: 0.0,
   last_x: 0.0,
   last_y: 0.0,
+  pointers: Map([]),
+  pinch_dist: 0.0,
+  pinch_x: 0.0,
+  pinch_y: 0.0,
 }
 
 ///|
@@ -374,5 +384,32 @@ fn set_hovered(i : Int32) -> Unit {
   }
   for j in graph.dependents[i] {
     scene.near[j] = true
+  }
+}
+
+///|
+/// Zooms by `k` about a point in canvas CSS pixels.
+fn zoom_at(k : Double, ox : Double, oy : Double) -> Unit {
+  let k = (scene.scale * k).clamp(min=0.02, max=20.0) / scene.scale
+  scene.cam_x = ox - (ox - scene.cam_x) * k
+  scene.cam_y = oy - (oy - scene.cam_y) * k
+  scene.scale = scene.scale * k
+}
+
+///|
+/// Distance and midpoint of the first two active pointers.
+fn pinch_geometry() -> (Double, Double, Double)? {
+  let pts = scene.pointers.values().take(2).collect()
+  guard pts is [(x0, y0), (x1, y1)] else { return None }
+  let d = ((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)).sqrt()
+  Some((d, (x0 + x1) / 2.0, (y0 + y1) / 2.0))
+}
+
+///|
+fn start_pinch() -> Unit {
+  if pinch_geometry() is Some((d, mx, my)) {
+    scene.pinch_dist = d
+    scene.pinch_x = mx
+    scene.pinch_y = my
   }
 }
