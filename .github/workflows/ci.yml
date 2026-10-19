@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s "$(cat moonbit-version)"
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          "$HOME/.moon/bin/moon" update
+
+      - name: Check formatting and interfaces
+        run: |
+          moon fmt --check
+          moon info
+          git diff --exit-code -- '*.mbti'
+
+      - name: Test
+        run: |
+          moon test --target native
+          moon test --target js
+          moon test --target wasm-gc -p gaato/force -p gaato/force/quadtree -p gaato/mooncakes_index
+
+      # Compares the CLI against an independent Python reader and tree(1).
+      - name: Gates
+        run: |
+          sudo apt-get install -y --no-install-recommends tree
+          ./scripts/gates.sh
