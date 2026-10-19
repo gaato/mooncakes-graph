@@ -11,6 +11,11 @@ struct Scene {
   mut show_hubs : Bool
   mut show_yanked : Bool
   mut show_isolated : Bool
+  /// With a selection, lay out only the modules related to it.
+  mut focused : Bool
+  /// The current simulation is a focus layout (its positions are not the
+  /// full map's, so they are not saved over it).
+  mut focus_layout : Bool
   /// Per node: no edge to any node the other toggles leave visible.
   mut isolated : Array[Bool]
   /// Per node: left out of the layout and the metrics.
@@ -64,6 +69,8 @@ let scene : Scene = {
   show_hubs: false,
   show_yanked: true,
   show_isolated: false,
+  focused: true,
+  focus_layout: false,
   isolated: [],
   hidden: [],
   hub: [],
@@ -137,12 +144,11 @@ fn load_graph(text : String) -> Int32 {
 }
 
 ///|
-/// Recomputes visibility, metrics, sizes and colours, and restarts the
-/// layout from the current positions.
+/// Recomputes visibility, metrics, sizes and colours after a toggle, then
+/// lays the map out again.
 fn rebuild() -> Unit {
   guard scene.graph is Some(graph) else { return }
   let n = graph.size()
-  save_positions()
   let toggled = Array::makei(n, i => {
     (!scene.show_hubs && scene.hub[i]) ||
     (!scene.show_yanked && graph.yanked[i])
@@ -164,10 +170,34 @@ fn rebuild() -> Unit {
     }
   })
   assign_colors(graph)
+  relayout()
+}
+
+///|
+/// Restarts the layout for the current selection: the full map, or in focus
+/// mode the selected module, everything that depends on it and what it
+/// depends on directly.
+fn relayout() -> Unit {
+  guard scene.graph is Some(graph) else { return }
+  let n = graph.size()
+  save_positions()
+  select_node(scene.selected)
+  let focus = scene.focused && scene.selected != NO_NODE
+  let in_layout = if focus {
+    let m = scene.impact.copy()
+    for d in graph.deps[scene.selected] {
+      if !scene.hidden[d] {
+        m[d] = true
+      }
+    }
+    m
+  } else {
+    scene.hidden.map(h => !h)
+  }
   let nodes = []
   let index = Array::make(n, NO_NODE)
   for i in 0..<n {
-    if !scene.hidden[i] {
+    if in_layout[i] {
       index[i] = nodes.length()
       nodes.push(i)
     }
@@ -198,20 +228,23 @@ fn rebuild() -> Unit {
   sim.add_force(@force.collide(nodes.map(i => scene.radius[i] + 1.5)))
   sim.add_force(@force.x(strength=0.03))
   sim.add_force(@force.y(strength=0.03))
-  if resumed {
+  if resumed && !focus {
     sim.set_alpha(0.5)
   }
   scene.sim = Some(sim)
   scene.sim_nodes = nodes
   scene.sim_index = index
-  if scene.selected != NO_NODE {
-    select_node(scene.selected)
+  scene.focus_layout = focus
+  if focus {
+    // The related modules gather from where they sat on the full map.
+    scene.follow = NO_NODE
+    scene.auto_fit = true
   }
 }
 
 ///|
 fn save_positions() -> Unit {
-  guard scene.sim is Some(sim) else { return }
+  guard scene.sim is Some(sim) && !scene.focus_layout else { return }
   let xs = sim.xs()
   let ys = sim.ys()
   for k, i in scene.sim_nodes {

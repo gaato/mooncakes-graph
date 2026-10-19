@@ -49,6 +49,7 @@ struct Model {
   show_hubs : Bool
   show_yanked : Bool
   show_isolated : Bool
+  focused : Bool
   /// The module in the URL, kept until the data arrives.
   wanted : String?
   selected : String?
@@ -73,6 +74,7 @@ enum Msg {
   ToggleHubs
   ToggleYanked
   ToggleIsolated
+  ToggleFocus
   Query(String)
   Submit
   Pick(String)
@@ -117,14 +119,21 @@ fn apply_selection(model : Model, name : String?) -> Model {
     None => NO_NODE
   }
   let mut model = model
-  if i != NO_NODE && scene.hidden[i] {
+  scene.selected = i
+  let needs_toggle = i != NO_NODE &&
+    (
+      (scene.hub[i] && !scene.show_hubs) ||
+      (graph.yanked[i] && !scene.show_yanked) ||
+      (!scene.focused && scene.isolated[i] && !scene.show_isolated)
+    )
+  if needs_toggle {
     if scene.hub[i] {
       scene.show_hubs = true
     }
     if graph.yanked[i] {
       scene.show_yanked = true
     }
-    if scene.isolated[i] {
+    if !scene.focused && scene.isolated[i] {
       scene.show_isolated = true
     }
     rebuild()
@@ -135,12 +144,14 @@ fn apply_selection(model : Model, name : String?) -> Model {
       show_isolated: scene.show_isolated,
       revision: model.revision + 1,
     }
-  }
-  select_node(i)
-  if i != NO_NODE {
-    focus(i)
   } else {
+    relayout()
+  }
+  if i == NO_NODE {
     scene.follow = NO_NODE
+    scene.auto_fit = true
+  } else if !scene.focused {
+    focus(i)
   }
   { ..model, wanted: None, selected: name_of(i), }
 }
@@ -343,6 +354,14 @@ fn update(model : Model, msg : Msg, _ : Emit[Msg]) -> (Model, Cmd) {
         @rabbita.none,
       )
     }
+    ToggleFocus => {
+      scene.focused = !scene.focused
+      relayout()
+      if !scene.focused && scene.selected != NO_NODE {
+        focus(scene.selected)
+      }
+      ({ ..model, focused: scene.focused, }, @rabbita.none)
+    }
     Query(q) => ({ ..model, query: q, }, @rabbita.none)
     Submit =>
       match search(model.query, 1) {
@@ -374,6 +393,7 @@ fn main {
             show_hubs: scene.show_hubs,
             show_yanked: scene.show_yanked,
             show_isolated: scene.show_isolated,
+            focused: scene.focused,
             wanted: None,
             selected: None,
             hovered: None,
@@ -475,9 +495,11 @@ fn status_view(m : Model) -> Html {
       match scene.graph {
         Some(g) => {
           let shown = scene.sim_nodes.length()
-          let hint = match m.hovered {
-            Some(name) => name
-            None =>
+          let hint = match (m.hovered, m.selected) {
+            (Some(name), _) => name
+            (None, Some(name)) if scene.focus_layout =>
+              "\{shown} modules: \{name}, what depends on it and what it uses"
+            (None, _) =>
               "\{shown} of \{g.size()} modules · scroll or pinch to zoom, drag to pan"
           }
           div(class="status", hint)
@@ -580,6 +602,15 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
         "More by \{owner}",
       ),
     ]),
+    @html.button(
+      class="view-switch",
+      on_click=emit(ToggleFocus),
+      if scene.focused {
+        "Show on the full map"
+      } else {
+        "Show only related modules"
+      },
+    ),
     @html.h2(class="sub", "Depends on (\{record.deps.length()})"),
     @html.ul(class="list", record.deps.map(d => module_link(d.name))),
     @html.h2(class="sub", "Depended on by (\{dependents.length()})"),

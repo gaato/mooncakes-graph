@@ -119,6 +119,12 @@
   .links { display: flex; flex-direction: column; gap: 4px; }
   .links a { color: var(--accent); text-decoration: none; }
   .links a:hover { text-decoration: underline; }
+  .view-switch {
+    margin-top: 14px; width: 100%; font: inherit; font-size: 13px; cursor: pointer;
+    color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 10px;
+  }
+  .view-switch:hover { background: var(--hover); }
   .list { margin: 0; padding: 0; list-style: none; }
   .list li { padding: 3px 6px; border-radius: 6px; cursor: pointer; overflow-wrap: anywhere; }
   .list li:hover { background: var(--hover); }

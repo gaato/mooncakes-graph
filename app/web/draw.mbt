@@ -89,7 +89,7 @@ fn draw() -> Unit {
 
   // Nodes.
   for k, i in scene.sim_nodes {
-    let faded = (selecting && !scene.impact[i]) ||
+    let faded = (selecting && !scene.focus_layout && !scene.impact[i]) ||
       (!selecting && hovered != NO_NODE && !scene.near[i])
     let fade = if faded { 0.15 } else { 1.0 }
     let alpha = fade * (if graph.yanked[i] { 0.35 } else { 1.0 })
@@ -120,9 +120,11 @@ fn draw() -> Unit {
   ctx.set_font("\{(12.0 * dpr).to_int()}px system-ui, sans-serif")
   ctx.set_fill_style(style(if dark { "#e5e7eb" } else { "#111827" }))
   let few_impacted = selecting && scene.impact_count <= 30
+  let label_all = scene.focus_layout && scene.sim_nodes.length() <= 80
   for k, i in scene.sim_nodes {
     let screen_r = scene.radius[i] * scene.scale
-    let wanted = i == hovered ||
+    let wanted = label_all ||
+      i == hovered ||
       i == scene.selected ||
       (few_impacted && scene.impact[i]) ||
       (screen_r >= 10.0 && (!selecting || scene.impact[i]))
