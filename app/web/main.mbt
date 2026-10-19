@@ -54,7 +54,6 @@ struct Model {
   wanted : String?
   selected : String?
   hovered : String?
-  query : String
   /// Bumped whenever the scene's metrics change, so views that read the
   /// scene re-render.
   revision : Int32
@@ -75,8 +74,6 @@ enum Msg {
   ToggleYanked
   ToggleIsolated
   ToggleFocus
-  Query(String)
-  Submit
   Pick(String)
   Clear
 }
@@ -163,39 +160,6 @@ fn select_and_push(model : Model, name : String?) -> (Model, Cmd) {
 }
 
 ///|
-fn search(query : String, limit : Int32) -> Array[String] {
-  guard scene.graph is Some(graph) && !query.is_empty() else { return [] }
-  let q = query.to_lower()
-  let hits = []
-  for i, name in graph.names {
-    let lower = name.to_lower()
-    let rank = if lower == q {
-      0
-    } else if lower.has_prefix(q) || lower.contains("/" + q) {
-      1
-    } else if lower.contains(q) {
-      2
-    } else {
-      continue
-    }
-    hits.push((rank, i))
-  }
-  hits.sort_by((a, b) => {
-    let c = a.0.compare(b.0)
-    if c != 0 {
-      return c
-    }
-    let d = scene.metrics.transitive[b.1].compare(scene.metrics.transitive[a.1])
-    if d != 0 {
-      d
-    } else {
-      @mooncakes_index.compare_names(graph.names[a.1], graph.names[b.1])
-    }
-  })
-  hits[:limit.min(hits.length())].iter().map(h => graph.names[h.1]).collect()
-}
-
-///|
 fn update(model : Model, msg : Msg, _ : Emit[Msg]) -> (Model, Cmd) {
   match msg {
     Loaded(Ok(body)) => {
@@ -222,9 +186,9 @@ fn update(model : Model, msg : Msg, _ : Emit[Msg]) -> (Model, Cmd) {
     }
     KeyDown("Escape") =>
       if model.selected is Some(_) {
-        select_and_push({ ..model, query: "", }, None)
+        select_and_push(model, None)
       } else {
-        ({ ..model, query: "", }, @rabbita.none)
+        (model, @rabbita.none)
       }
     KeyDown(_) => (model, @rabbita.none)
     Wheel(e) => {
@@ -362,13 +326,7 @@ fn update(model : Model, msg : Msg, _ : Emit[Msg]) -> (Model, Cmd) {
       }
       ({ ..model, focused: scene.focused, }, @rabbita.none)
     }
-    Query(q) => ({ ..model, query: q, }, @rabbita.none)
-    Submit =>
-      match search(model.query, 1) {
-        [name] => select_and_push({ ..model, query: "", }, Some(name))
-        _ => (model, @rabbita.none)
-      }
-    Pick(name) => select_and_push({ ..model, query: "", }, Some(name))
+    Pick(name) => select_and_push(model, Some(name))
     Clear => select_and_push(model, None)
   }
 }
@@ -397,7 +355,6 @@ fn main {
             wanted: None,
             selected: None,
             hovered: None,
-            query: "",
             revision: 0,
           },
           @http.get(resolve_url("data/versions.jsonl")).expect_text(
@@ -423,66 +380,128 @@ fn view(emit : Emit[Msg], model : Val[Model]) -> Val[Html] {
     .on_pointercancel(_ => emit(PointerLeave))
     .aria_label("Dependency map of mooncakes.io modules")
   let canvas = @html.canvas(id="graph", attrs=canvas_attrs, ([] : Array[Html]))
-  model.map(m => {
-    div(class="app", [
-      header_view(emit, m),
-      div(class="main", [
-        div(class="stage", [canvas, status_view(m)]),
-        @html.aside(class="panel", [
-          match m.selected {
-            Some(name) => detail_view(emit, name)
-            None => ranking_view(emit)
-          },
-        ]),
+  let body = model.map(m => {
+    div(class="main", [
+      div(class="stage", [canvas, status_view(m)]),
+      @html.aside(class="panel", [
+        match m.selected {
+          Some(name) => detail_view(emit, name)
+          None => ranking_view(emit)
+        },
       ]),
+    ])
+  })
+  // rui's theme sets its tokens for one mode; follow the OS at load time.
+  let mode : @rui.ColorMode = if prefers_dark() { Dark } else { Light }
+  header_view(emit, model).view2(body, (header, body) => {
+    @rui.theme(mode~, class="app", [header, body])
+  })
+}
+
+///|
+fn header_view(emit : Emit[Msg], model : Val[Model]) -> Val[Html] {
+  // Rebuilt when the data, the metrics or the selection change, so the
+  // options follow the ranking and the box empties after a pick.
+  let search = model
+    .map(m => {
+      let selected = m.selected.unwrap_or("")
+      "\{m.status is Ready}|\{m.revision}|\{selected}"
+    })
+    .switch_by(_ => search_view(emit), by=key => key)
+  let hubs = toggle_view(
+    emit,
+    model.map(m => m.show_hubs),
+    "moonbitlang/x & async",
+    ToggleHubs,
+  )
+  let yanked = toggle_view(
+    emit,
+    model.map(m => m.show_yanked),
+    "yanked",
+    ToggleYanked,
+  )
+  let isolated = toggle_view(
+    emit,
+    model.map(m => m.show_isolated),
+    "unconnected",
+    ToggleIsolated,
+  )
+  search.view4(hubs, yanked, isolated, (search, hubs, yanked, isolated) => {
+    @html.header(class="top", [
+      div(class="brand", [
+        @html.span(class="title", "mooncakes graph"),
+        @html.span(class="badge", "unofficial"),
+      ]),
+      div(class="search", [search]),
+      div(class="toggles", [hubs, yanked, isolated]),
     ])
   })
 }
 
 ///|
-fn header_view(emit : Emit[Msg], m : Model) -> Html {
-  let results = search(m.query, 8)
-  let form_attrs = @html.Attrs::build().on_submit(e => {
-    e.prevent_default()
-    emit(Submit)
-  })
-  @html.header(class="top", [
-    div(class="brand", [
-      @html.span(class="title", "mooncakes graph"),
-      @html.span(class="badge", "unofficial"),
-    ]),
-    @html.form(class="search", attrs=form_attrs, [
+fn search_view(emit : Emit[Msg]) -> Val[Html] {
+  guard scene.graph is Some(graph) else {
+    return Val::constant(
       @html.input(
         input_type=Search,
-        value=m.query,
-        placeholder="Search modules",
-        auto_complete=Off,
-        on_input=emit.map(q => Query(q)),
+        placeholder="Loading…",
+        attrs=@html.Attrs::build(),
       ),
-      if results.is_empty() {
-        text("")
-      } else {
-        @html.ul(
-          class="results",
-          results.map(name => @html.li(on_click=emit(Pick(name)), name)),
-        )
-      },
-    ]),
-    div(class="toggles", [
-      toggle("moonbitlang/x & async", m.show_hubs, emit(ToggleHubs)),
-      toggle("yanked", m.show_yanked, emit(ToggleYanked)),
-      toggle("unconnected", m.show_isolated, emit(ToggleIsolated)),
-    ]),
-  ])
+    )
+  }
+  let t = scene.metrics.transitive
+  let order = Array::makei(graph.size(), i => i)
+  order.sort_by((a, b) => {
+    let c = t[b].compare(t[a])
+    if c != 0 {
+      c
+    } else {
+      @mooncakes_index.compare_names(graph.names[a], graph.names[b])
+    }
+  })
+  @rui.combobox(
+    id="search",
+    options=order.map(i => {
+      @rui.combobox_option(value=graph.names[i], label=graph.names[i])
+    }),
+    placeholder="Search modules",
+    empty_text="No module matches",
+    on_value_change=emit.map(v => if v.is_empty() { Clear } else { Pick(v) }),
+  )
 }
 
 ///|
-fn toggle(label : String, on : Bool, msg : Cmd) -> Html {
-  @html.button(
-    class=if on { "toggle on" } else { "toggle" },
-    attrs=@html.Attrs::build().aria_pressed(if on { "true" } else { "false" }),
-    on_click=msg,
-    label,
+/// A rui toggle that shows `on`. rui toggles keep their own state, so the
+/// toggle is rebuilt whenever `on` changes, including when a selection turns
+/// a toggle on.
+fn toggle_view(
+  emit : Emit[Msg],
+  on : Val[Bool],
+  label : String,
+  msg : Msg,
+) -> Val[Html] {
+  on.switch_by(
+    pressed => {
+      @rui.toggle(
+        default_pressed=pressed,
+        variant=Outline,
+        size=Sm,
+        aria_label=label,
+        on_pressed_change=emit.map(_ => msg),
+        // rui marks "on" with a faint muted fill; fill it with the primary
+        // colour so the state reads at a glance.
+        style=if pressed {
+          [
+            "--rui-toggle-bg:var(--rui-primary)", "--rui-toggle-fg:var(--rui-primary-foreground)",
+            "border-color:var(--rui-primary)",
+          ]
+        } else {
+          []
+        },
+        label,
+      )
+    },
+    by=pressed => pressed.to_string(),
   )
 }
 
@@ -602,7 +621,9 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
         "More by \{owner}",
       ),
     ]),
-    @html.button(
+    @rui.button(
+      variant=Outline,
+      size=Sm,
       class="view-switch",
       on_click=emit(ToggleFocus),
       if scene.focused {

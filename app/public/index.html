@@ -54,27 +54,8 @@
     font-size: 11px; color: var(--muted);
     border: 1px solid var(--line); border-radius: 999px; padding: 0 8px;
   }
-  .search { position: relative; flex: 1; max-width: 420px; margin: 0; }
-  .search input {
-    width: 100%; padding: 7px 10px; font: inherit; color: inherit;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-  }
-  .search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .results {
-    position: absolute; z-index: 10; top: calc(100% + 4px); left: 0; right: 0;
-    margin: 0; padding: 4px; list-style: none;
-    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
-  }
-  .results li { padding: 6px 8px; border-radius: 6px; cursor: pointer; }
-  .results li:hover { background: var(--hover); }
+  .search { flex: 1; max-width: 420px; }
   .toggles { display: flex; gap: 8px; margin-left: auto; }
-  .toggle {
-    font: inherit; font-size: 13px; color: var(--muted); cursor: pointer;
-    background: transparent; border: 1px solid var(--line); border-radius: 999px;
-    padding: 4px 12px; white-space: nowrap;
-  }
-  .toggle.on { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
 
   .main { flex: 1; display: flex; min-height: 0; }
   .stage { position: relative; flex: 1; min-width: 0; }
@@ -119,12 +100,7 @@
   .links { display: flex; flex-direction: column; gap: 4px; }
   .links a { color: var(--accent); text-decoration: none; }
   .links a:hover { text-decoration: underline; }
-  .view-switch {
-    margin-top: 14px; width: 100%; font: inherit; font-size: 13px; cursor: pointer;
-    color: var(--fg); background: var(--bg); border: 1px solid var(--line);
-    border-radius: 8px; padding: 6px 10px;
-  }
-  .view-switch:hover { background: var(--hover); }
+  .view-switch { margin-top: 14px; width: 100%; }
   .list { margin: 0; padding: 0; list-style: none; }
   .list li { padding: 3px 6px; border-radius: 6px; cursor: pointer; overflow-wrap: anywhere; }
   .list li:hover { background: var(--hover); }

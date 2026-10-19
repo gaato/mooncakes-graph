@@ -12,6 +12,7 @@ import {
   "moonbit-community/rabbita/sub",
   "moonbit-community/rabbita/url",
   "moonbitlang/core/math",
+  "moonbit-community/rui",
 }
 
 supported_targets = "js"
