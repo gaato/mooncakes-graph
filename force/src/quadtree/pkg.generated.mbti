@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "gaato/force/quadtree"
+
+// Values
+pub fn build(Array[Double], Array[Double], weights? : Array[Double]) -> Tree
+
+// Errors
+
+// Types and methods
+pub struct Quad {
+  mut x0 : Double
+  mut y0 : Double
+  mut x1 : Double
+  mut y1 : Double
+  mut mass : Double
+  mut cx : Double
+  mut cy : Double
+  mut max_weight : Double
+  mut head : Int
+  // private fields
+}
+
+pub struct Tree {
+  // private fields
+}
+pub fn Tree::find(Self, Double, Double, radius? : Double) -> Int?
+pub fn Tree::next(Self, Int) -> Int
+pub fn Tree::rebuild(Self, Array[Double], Array[Double], weights? : Array[Double]) -> Unit
+pub fn Tree::visit(Self, (Quad) -> Bool) -> Unit
+
+// Type aliases
+
+// Traits

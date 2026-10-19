@@ -1,0 +1,11 @@
+import {
+  "moonbitlang/core/math",
+  "moonbitlang/core/double",
+  "gaato/force/quadtree",
+}
+
+supported_targets = "js + native + wasm-gc"
+
+import {
+  "moonbitlang/core/bench",
+} for "test"

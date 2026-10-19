@@ -1,0 +1,62 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "gaato/force"
+
+// Values
+pub fn center(x? : Double, y? : Double, strength? : Double) -> Force
+
+pub fn collide(Array[Double], strength? : Double, iterations? : Int) -> Force
+
+pub fn link(Array[(Int, Int)], distance? : Double, distances? : Array[Double], strengths? : Array[Double], iterations? : Int) -> Force
+
+pub fn many_body(strength? : Double, strengths? : Array[Double], theta? : Double, distance_min? : Double, distance_max? : Double) -> Force
+
+pub fn x(target? : Double, strength? : Double, targets? : Array[Double], strengths? : Array[Double]) -> Force
+
+pub fn y(target? : Double, strength? : Double, targets? : Array[Double], strengths? : Array[Double]) -> Force
+
+// Errors
+
+// Types and methods
+pub enum Force {
+  Link(Array[(Int, Int)], Array[Double], Array[Double], Array[Double], Int)
+  ManyBody(Double, Array[Double]?, Double, Double, Double)
+  Center(Double, Double, Double)
+  Collide(Array[Double], Double, Int)
+  Position(Bool, Double, Double, Array[Double]?, Array[Double]?)
+}
+
+pub struct Random {
+  // private fields
+}
+pub fn Random::new(seed? : UInt) -> Self
+pub fn Random::next(Self) -> Double
+
+pub struct Simulation {
+  mut alpha : Double
+  mut alpha_min : Double
+  mut alpha_decay : Double
+  mut alpha_target : Double
+  mut velocity_decay : Double
+  // private fields
+}
+pub fn Simulation::add_force(Self, Force) -> Unit
+pub fn Simulation::clear_forces(Self) -> Unit
+pub fn Simulation::new(Int, seed? : UInt) -> Self
+pub fn Simulation::node_count(Self) -> Int
+pub fn Simulation::pin(Self, Int, x? : Double, y? : Double) -> Unit
+pub fn Simulation::set_alpha(Self, Double) -> Unit
+pub fn Simulation::set_alpha_decay(Self, Double) -> Unit
+pub fn Simulation::set_alpha_min(Self, Double) -> Unit
+pub fn Simulation::set_alpha_target(Self, Double) -> Unit
+pub fn Simulation::set_position(Self, Int, Double, Double) -> Unit
+pub fn Simulation::set_velocity(Self, Int, Double, Double) -> Unit
+pub fn Simulation::set_velocity_decay(Self, Double) -> Unit
+pub fn Simulation::tick(Self, iterations? : Int) -> Unit
+pub fn Simulation::vxs(Self) -> ArrayView[Double]
+pub fn Simulation::vys(Self) -> ArrayView[Double]
+pub fn Simulation::xs(Self) -> ArrayView[Double]
+pub fn Simulation::ys(Self) -> ArrayView[Double]
+
+// Type aliases
+
+// Traits
