@@ -32,6 +32,9 @@ struct Scene {
   mut scale : Double
   /// Keep the whole map in view until the user pans or zooms.
   mut auto_fit : Bool
+  /// Keep this node centred (while the layout still moves it) until the
+  /// user pans or zooms.
+  mut follow : Int32
   mut width : Double
   mut height : Double
   mut hovered : Int32
@@ -71,6 +74,7 @@ let scene : Scene = {
   cam_y: 0.0,
   scale: 1.0,
   auto_fit: true,
+  follow: NO_NODE,
   width: 0.0,
   height: 0.0,
   hovered: NO_NODE,
@@ -240,7 +244,9 @@ fn step() -> Unit {
   if sim.alpha >= sim.alpha_min {
     sim.tick()
   }
-  if scene.auto_fit {
+  if scene.follow != NO_NODE {
+    follow_node(scene.follow, 0.2)
+  } else if scene.auto_fit {
     fit_view(0.15)
   }
 }
@@ -326,14 +332,29 @@ fn select_node(i : Int32) -> Unit {
 }
 
 ///|
-/// Centres the camera on a node, keeping the zoom unless it is too far out
-/// to see the node.
+/// Starts following a node: the camera glides to it and keeps it centred.
 fn focus(i : Int32) -> Unit {
-  guard position(i) is Some((x, y)) else { return }
   scene.auto_fit = false
-  scene.scale = scene.scale.max(0.6)
-  scene.cam_x = scene.width / 2.0 - x * scene.scale
-  scene.cam_y = scene.height / 2.0 - y * scene.scale
+  scene.follow = i
+}
+
+///|
+/// Stops any automatic camera movement; called when the user takes over.
+fn release_camera() -> Unit {
+  scene.auto_fit = false
+  scene.follow = NO_NODE
+}
+
+///|
+fn follow_node(i : Int32, ease : Double) -> Unit {
+  guard position(i) is Some((x, y)) else { return }
+  // Zoom in far enough to tell the node's neighbourhood apart.
+  let target_scale = scene.scale.max(0.6)
+  scene.scale += (target_scale - scene.scale) * ease
+  let target_x = scene.width / 2.0 - x * scene.scale
+  let target_y = scene.height / 2.0 - y * scene.scale
+  scene.cam_x += (target_x - scene.cam_x) * ease
+  scene.cam_y += (target_y - scene.cam_y) * ease
 }
 
 ///|

@@ -25,6 +25,13 @@ for key in direct transitive owners; do
   name="top --by $key matches oracle"; check cmp -s "$tmp/cli.tsv" "$tmp/oracle.tsv"
 done
 
+name="dependents/deps draw like tree(1)"; check python3 -I scripts/tree_gate.py "$cli"
+
+"$cli" dependents gaato/http --noreport | tail -n +2 | sed 's/^[│├└─ ]*//; s/ (\*)$//' | sort -u >"$tmp/tree_names"
+"$cli" dependents gaato/http -J | python3 -I -c 'import json,sys; print(json.load(sys.stdin)[-1]["modules"])' >"$tmp/count"
+python3 -I scripts/oracle.py top transitive | awk -F'\t' '$1=="gaato/http"{print $3}' >"$tmp/oracle_count"
+name="dependents count equals transitive dependents"; check cmp -s "$tmp/count" "$tmp/oracle_count"
+
 python3 -I scripts/oracle.py stats
 
 exit "$fail"

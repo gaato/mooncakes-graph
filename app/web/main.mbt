@@ -127,6 +127,8 @@ fn apply_selection(model : Model, name : String?) -> Model {
   select_node(i)
   if i != NO_NODE {
     focus(i)
+  } else {
+    scene.follow = NO_NODE
   }
   { ..model, wanted: None, selected: name_of(i), }
 }
@@ -204,7 +206,7 @@ fn update(model : Model, msg : Msg, _ : Emit[Msg]) -> (Model, Cmd) {
     KeyDown(_) => (model, @rabbita.none)
     Wheel(e) => {
       e.prevent_default()
-      scene.auto_fit = false
+      release_camera()
       let k = @math.exp(-e.get_delta_y() * 0.0015)
       let k = (scene.scale * k).clamp(min=0.02, max=20.0) / scene.scale
       let ox = e.get_offset_x()
@@ -228,7 +230,7 @@ fn update(model : Model, msg : Msg, _ : Emit[Msg]) -> (Model, Cmd) {
       if scene.pointer_down {
         if (cx - scene.down_x).abs() + (cy - scene.down_y).abs() > 4.0 {
           scene.dragged = true
-          scene.auto_fit = false
+          release_camera()
         }
         if scene.dragged {
           scene.cam_x += cx - scene.last_x
