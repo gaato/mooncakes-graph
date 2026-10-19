@@ -4,12 +4,132 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>mooncakes graph</title>
+<meta name="description" content="Which mooncakes.io modules are depended on the most: an interactive map of the MoonBit registry's dependency graph. Unofficial.">
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; font: 14px system-ui, sans-serif; }
-  #app, .page { height: 100%; }
-  .page { position: relative; }
-  canvas#graph { display: block; width: 100%; height: 100%; touch-action: none; }
-  .hud { position: absolute; top: 8px; left: 8px; background: rgba(255,255,255,.85); padding: 4px 8px; white-space: pre; font-family: ui-monospace, monospace; font-size: 12px; }
+  :root {
+    --bg: #ffffff;
+    --fg: #111827;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --panel: #f9fafb;
+    --hover: #f3f4f6;
+    --accent: #2563eb;
+    --accent-fg: #ffffff;
+    --warn: #b45309;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0f17;
+      --fg: #e5e7eb;
+      --muted: #9ca3af;
+      --line: #1f2937;
+      --panel: #111827;
+      --hover: #1f2937;
+      --accent: #3b82f6;
+      --accent-fg: #ffffff;
+      --warn: #fbbf24;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    overflow: hidden;
+  }
+  #app, .app { height: 100%; }
+  .app { display: flex; flex-direction: column; }
+
+  .top {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+  .title { font-weight: 650; font-size: 16px; }
+  .badge {
+    font-size: 11px; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px; padding: 0 8px;
+  }
+  .search { position: relative; flex: 1; max-width: 420px; margin: 0; }
+  .search input {
+    width: 100%; padding: 7px 10px; font: inherit; color: inherit;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  }
+  .search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .results {
+    position: absolute; z-index: 10; top: calc(100% + 4px); left: 0; right: 0;
+    margin: 0; padding: 4px; list-style: none;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+  }
+  .results li { padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+  .results li:hover { background: var(--hover); }
+  .toggles { display: flex; gap: 8px; margin-left: auto; }
+  .toggle {
+    font: inherit; font-size: 13px; color: var(--muted); cursor: pointer;
+    background: transparent; border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 12px; white-space: nowrap;
+  }
+  .toggle.on { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
+
+  .main { flex: 1; display: flex; min-height: 0; }
+  .stage { position: relative; flex: 1; min-width: 0; }
+  canvas#graph { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  canvas#graph:active { cursor: grabbing; }
+  .status {
+    position: absolute; left: 12px; bottom: 10px; pointer-events: none;
+    font-size: 12px; color: var(--muted);
+    background: color-mix(in srgb, var(--bg) 80%, transparent);
+    padding: 2px 8px; border-radius: 6px;
+  }
+  .status.error { color: var(--warn); }
+
+  .panel {
+    width: 340px; flex: none; overflow-y: auto;
+    border-left: 1px solid var(--line); background: var(--panel); padding: 16px;
+  }
+  .panel h2 { font-size: 15px; margin: 0 0 4px; overflow-wrap: anywhere; }
+  .panel h2.sub { font-size: 13px; margin: 18px 0 6px; color: var(--muted); font-weight: 600; }
+  .note, .meta { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+  .warn { color: var(--warn); font-size: 12px; margin: 0 0 8px; }
+  .ranking ol { margin: 0; padding: 0; list-style: none; counter-reset: rank; }
+  .ranking li {
+    display: flex; gap: 8px; padding: 5px 6px; border-radius: 6px; cursor: pointer;
+    counter-increment: rank;
+  }
+  .ranking li::before { content: counter(rank); width: 1.6em; color: var(--muted); text-align: right; }
+  .ranking li:hover { background: var(--hover); }
+  .ranking .name { flex: 1; overflow-wrap: anywhere; }
+  .ranking .num { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .detail-head { display: flex; align-items: flex-start; gap: 8px; }
+  .detail-head h2 { flex: 1; }
+  .close {
+    font-size: 18px; line-height: 1; color: var(--muted); cursor: pointer;
+    background: none; border: none; padding: 0 4px;
+  }
+  .metrics {
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 12px 0;
+  }
+  .metrics dt { color: var(--muted); }
+  .metrics dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .links { display: flex; flex-direction: column; gap: 4px; }
+  .links a { color: var(--accent); text-decoration: none; }
+  .links a:hover { text-decoration: underline; }
+  .list { margin: 0; padding: 0; list-style: none; }
+  .list li { padding: 3px 6px; border-radius: 6px; cursor: pointer; overflow-wrap: anywhere; }
+  .list li:hover { background: var(--hover); }
+  .list li.missing { color: var(--muted); cursor: default; }
+  .list li.missing:hover { background: none; }
+
+  @media (max-width: 720px) {
+    .top { flex-wrap: wrap; gap: 8px; }
+    .search { order: 3; flex-basis: 100%; max-width: none; }
+    .main { flex-direction: column; }
+    .panel { width: auto; height: 40%; border-left: none; border-top: 1px solid var(--line); }
+  }
 </style>
 </head>
 <body>

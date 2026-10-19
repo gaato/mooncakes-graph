@@ -5,6 +5,7 @@ version = "0.1.0"
 import {
   "moonbit-community/rabbita@0.16.5",
   "gaato/mooncakes_index@0.1.0",
+  "gaato/force@0.1.0",
   "cli/core@0.6.0",
   "moonbitlang/x@0.5.5",
 }

@@ -12,6 +12,8 @@ type Msg
 
 type Scene
 
+type Status derive(Eq)
+
 // Type aliases
 
 // Traits

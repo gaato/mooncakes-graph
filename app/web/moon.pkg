@@ -1,13 +1,16 @@
 import {
+  "gaato/force",
+  "gaato/mooncakes_index",
+  "gaato/mooncakes-graph/graph",
   "moonbit-community/rabbita",
   "moonbit-community/rabbita/dom",
   "moonbit-community/rabbita/html",
   "moonbit-community/rabbita/html/canvas",
   "moonbit-community/rabbita/http",
   "moonbit-community/rabbita/js",
+  "moonbit-community/rabbita/nav",
   "moonbit-community/rabbita/sub",
   "moonbit-community/rabbita/url",
-  "moonbitlang/core/json",
   "moonbitlang/core/math",
 }
 

@@ -29,7 +29,7 @@ pub fn Graph::new(ArrayView[(String, Array[@mooncakes_index.VersionRecord])]) ->
 pub fn Graph::size(Self) -> Int
 pub fn Graph::transitive_dependents(Self, Int, excluded? : Array[Bool]) -> Array[Int]
 
-pub struct Metrics {
+pub(all) struct Metrics {
   direct : Array[Int]
   transitive : Array[Int]
   owners : Array[Int]

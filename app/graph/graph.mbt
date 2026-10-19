@@ -140,7 +140,7 @@ pub fn Graph::transitive_dependents(
 
 ///|
 /// How much each module is depended on.
-pub struct Metrics {
+pub(all) struct Metrics {
   /// Modules whose current version lists it.
   direct : Array[Int32]
   /// Modules that reach it through dependencies.
