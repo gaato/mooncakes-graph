@@ -6,6 +6,24 @@ extern "js" fn set_alpha(
   #|(c, a) => { c.globalAlpha = a; }
 
 ///|
+/// Dashes `dash` long with `gap` between them, shifted by `offset`; a zero
+/// `dash` restores solid lines.
+extern "js" fn set_dash(
+  ctx : @dom.CanvasRenderingContext2D,
+  dash : Double,
+  gap : Double,
+  offset : Double,
+) -> Unit =
+  #|(c, d, g, o) => { c.setLineDash(d > 0 ? [d, g] : []); c.lineDashOffset = o; }
+
+///|
+extern "js" fn now_ms() -> Double = "() => performance.now()"
+
+///|
+extern "js" fn prefers_reduced_motion() -> Bool =
+  #|() => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+///|
 extern "js" fn prefers_dark() -> Bool =
   #|() => window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
 
@@ -57,28 +75,24 @@ fn draw() -> Unit {
     }
   }
 
-  // Edges: one faint batch, then the highlighted ones on top.
-  ctx.set_line_width(0.6 / scene.scale)
-  ctx.set_stroke_style(
-    style(if dark { "rgba(148,163,184,0.16)" } else { "rgba(71,85,105,0.16)" }),
-  )
-  ctx.begin_path()
-  for a in scene.sim_nodes {
-    for b in graph.deps[a] {
-      if index[b] != NO_NODE && !highlighted(a, b) {
-        ctx.move_to(xs[index[a]], ys[index[a]])
-        ctx.line_to(xs[index[b]], ys[index[b]])
-      }
+  // Edges: one faint batch, then the highlighted ones on top. Edges that
+  // matter (a focus layout, a highlight) flow from a module toward what it
+  // depends on; with reduced motion they get arrowheads instead.
+  let animate = !prefers_reduced_motion()
+  let flowing = fn(on : Bool) {
+    if on && animate {
+      let unit = 1.0 / scene.scale
+      // 40 CSS px per second along the edge.
+      set_dash(ctx, 6.0 * unit, 5.0 * unit, -now_ms() * 0.04 * unit)
+    } else {
+      set_dash(ctx, 0.0, 0.0, 0.0)
     }
   }
-  ctx.stroke()
-  if selecting || hovered != NO_NODE {
-    ctx.set_line_width(1.2 / scene.scale)
-    ctx.set_stroke_style(style(if dark { "#fbbf24" } else { "#d97706" }))
+  let batch = fn(lit : Bool) {
     ctx.begin_path()
     for a in scene.sim_nodes {
       for b in graph.deps[a] {
-        if index[b] != NO_NODE && highlighted(a, b) {
+        if index[b] != NO_NODE && highlighted(a, b) == lit {
           ctx.move_to(xs[index[a]], ys[index[a]])
           ctx.line_to(xs[index[b]], ys[index[b]])
         }
@@ -86,6 +100,32 @@ fn draw() -> Unit {
     }
     ctx.stroke()
   }
+  if scene.focus_layout {
+    ctx.set_line_width(1.0 / scene.scale)
+    ctx.set_stroke_style(
+      style(if dark { "rgba(148,163,184,0.6)" } else { "rgba(71,85,105,0.5)" }),
+    )
+  } else {
+    ctx.set_line_width(0.6 / scene.scale)
+    ctx.set_stroke_style(
+      style(
+        if dark {
+          "rgba(148,163,184,0.16)"
+        } else {
+          "rgba(71,85,105,0.16)"
+        },
+      ),
+    )
+  }
+  flowing(scene.focus_layout)
+  batch(false)
+  if selecting || hovered != NO_NODE {
+    ctx.set_line_width(1.4 / scene.scale)
+    ctx.set_stroke_style(style(if dark { "#fbbf24" } else { "#d97706" }))
+    flowing(true)
+    batch(true)
+  }
+  flowing(false)
 
   // Nodes.
   for k, i in scene.sim_nodes {
@@ -100,6 +140,38 @@ fn draw() -> Unit {
     ctx.fill()
   }
   set_alpha(ctx, 1.0)
+
+  // Without motion, arrowheads show the direction on the same edges.
+  let arrow = 7.0 / scene.scale
+  let heads = fn(lit : Bool) {
+    ctx.begin_path()
+    for a in scene.sim_nodes {
+      for b in graph.deps[a] {
+        if index[b] != NO_NODE && highlighted(a, b) == lit {
+          arrow_head(
+            ctx,
+            xs[index[a]],
+            ys[index[a]],
+            xs[index[b]],
+            ys[index[b]],
+            scene.radius[b],
+            arrow,
+          )
+        }
+      }
+    }
+    ctx.fill()
+  }
+  if !animate && scene.focus_layout {
+    ctx.set_fill_style(
+      style(if dark { "rgba(148,163,184,0.7)" } else { "rgba(71,85,105,0.6)" }),
+    )
+    heads(false)
+  }
+  if !animate && (selecting || hovered != NO_NODE) {
+    ctx.set_fill_style(style(if dark { "#fbbf24" } else { "#d97706" }))
+    heads(true)
+  }
   if selecting && index[scene.selected] != NO_NODE {
     let k = index[scene.selected]
     ctx.set_line_width(2.5 / scene.scale)
@@ -138,4 +210,35 @@ fn draw() -> Unit {
     }
     ctx.fill_text(graph.names[i], sx + (screen_r + 3.0) * dpr, sy + 4.0 * dpr)
   }
+}
+
+///|
+/// Adds a triangle to the current path whose tip touches the circle of
+/// radius `r` around (x1, y1), pointing away from (x0, y0).
+fn arrow_head(
+  ctx : @dom.CanvasRenderingContext2D,
+  x0 : Double,
+  y0 : Double,
+  x1 : Double,
+  y1 : Double,
+  r : Double,
+  size : Double,
+) -> Unit {
+  let dx = x1 - x0
+  let dy = y1 - y0
+  let len = (dx * dx + dy * dy).sqrt()
+  if len <= r + size {
+    return
+  }
+  let ux = dx / len
+  let uy = dy / len
+  let tx = x1 - ux * r
+  let ty = y1 - uy * r
+  let bx = tx - ux * size
+  let by = ty - uy * size
+  let half = size * 0.45
+  ctx.move_to(tx, ty)
+  ctx.line_to(bx - uy * half, by + ux * half)
+  ctx.line_to(bx + uy * half, by - ux * half)
+  ctx.close_path()
 }
