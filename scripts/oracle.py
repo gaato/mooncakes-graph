@@ -98,20 +98,15 @@ def current(rows):
 def stats(rows):
     by, cur = current(rows)
     names = set(by)
-    edges = [(m, t) for m, d in cur.items() for t in d["deps"]]
-    direct = {}
-    for m, t in edges:
-        direct[t] = direct.get(t, 0) + 1
+    deps = [(m, t) for m, d in cur.items() for t in d["deps"]]
     return {
-        "versions": len(rows),
         "modules": len(names),
+        "versions": len(rows),
         "modules_with_deps": sum(1 for d in cur.values() if d["deps"]),
-        "edges": len(edges),
-        "dangling_edges": sum(1 for _, t in edges if t not in names),
+        # Graph edges: to other modules in the index.
+        "edges": sum(1 for m, t in deps if t in names and t != m),
+        "dangling_edges": sum(1 for _, t in deps if t not in names),
         "all_yanked": sum(1 for vs in by.values() if all(v["yanked"] for v in vs)),
-        "direct_dependents": {
-            k: direct.get(k, 0) for k in ("moonbitlang/x", "moonbitlang/async")
-        },
     }
 
 

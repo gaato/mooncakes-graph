@@ -36,6 +36,9 @@ name="dependents/deps draw like tree(1)"; check python3 -I scripts/tree_gate.py 
 python3 -I scripts/oracle.py top transitive | awk -F'\t' '$1=="gaato/http"{print $3}' >"$tmp/oracle_count"
 name="dependents count equals transitive dependents"; check cmp -s "$tmp/count" "$tmp/oracle_count"
 
-python3 -I scripts/oracle.py stats
+"$cli" stats | python3 -I -c 'import json,sys; d=json.load(sys.stdin); d.pop("index_fetched_at"); print(json.dumps(d, sort_keys=True))' >"$tmp/cli_stats"
+python3 -I scripts/oracle.py stats | python3 -I -c 'import json,sys; print(json.dumps(json.load(sys.stdin), sort_keys=True))' >"$tmp/oracle_stats"
+name="stats matches oracle"; check cmp -s "$tmp/cli_stats" "$tmp/oracle_stats"
+cat "$tmp/cli_stats"
 
 exit "$fail"

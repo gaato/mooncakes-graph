@@ -13,6 +13,7 @@ const USAGE : String =
   #|  versions    every published version as JSONL, one per line
   #|  modules     every module's description, repository, license and
   #|              keywords from its current version, as JSONL
+  #|  stats       counts and the index's fetch time, as JSON
   #|  top         modules ranked by how much they are depended on, as TSV
   #|                -n N        rows to print (default 20, 0 for all)
   #|                --by KEY    direct | transitive | owners (default transitive)
@@ -69,6 +70,7 @@ fn run(args : ArrayView[String]) -> Int32 raise {
     "deps" => tree_command(Deps, rest)
     "versions" => versions(rest)
     "modules" => modules(rest)
+    "stats" => stats(rest)
     "top" => top(rest)
     "-h" | "--help" | "help" => {
       println(USAGE)
@@ -172,6 +174,42 @@ fn modules(args : ArrayView[String]) -> Int32 raise {
   if index.modules.length() > 0 {
     println(out.to_string())
   }
+  0
+}
+
+///|
+/// The index at a glance: when it was fetched and what the graph holds.
+/// `edges` are the graph's (dependencies on other modules in the index);
+/// `dangling_edges` are dependencies on modules missing from it.
+fn stats(args : ArrayView[String]) -> Int32 raise {
+  let parsed = @args.parse(args, common_options)
+  if parsed.operands.length() > 0 {
+    raise usage_error("", "stats takes no operands")
+  }
+  let index = load_index(parsed)
+  let graph = @graph.Graph::new(index.modules)
+  let count = fn(n : Int32) { Json::number(n.to_double()) }
+  let versions = index.modules.fold(init=0, (n, m) => n + m.1.length())
+  let with_deps = graph.current.iter().filter(r => !r.deps.is_empty()).count()
+  let all_yanked = graph.yanked.iter().filter(y => y).count()
+  let out = Json::object(
+    Map([
+      (
+        "index_fetched_at",
+        match index.fetched_at {
+          Some(t) => Json::string(format_time(t))
+          None => Json::null()
+        },
+      ),
+      ("modules", count(graph.size())),
+      ("versions", count(versions)),
+      ("modules_with_deps", count(with_deps)),
+      ("edges", count(graph.edge_count())),
+      ("dangling_edges", count(graph.dangling)),
+      ("all_yanked", count(all_yanked)),
+    ]),
+  )
+  println(out.stringify(indent=2))
   0
 }
 

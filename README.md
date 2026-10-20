@@ -36,6 +36,19 @@ it into `data/versions.jsonl`, and the browser computes everything else.
 Descriptions and the rest come from `data/modules.jsonl`, which is fetched
 when a module is first opened.
 
+The site also serves the data for anyone, or any agent, that wants it without
+the map. [`llms.txt`](https://llmstxt.org) says what is where:
+
+| file | contents |
+|---|---|
+| `data/metrics.tsv` | Every module's direct, transitive and other-owner dependent counts, as `top -n 0` prints them. |
+| `data/versions.jsonl` | Every published version, as `versions` prints it. |
+| `data/modules.jsonl` | Descriptions and the rest, as `modules` prints it. |
+| `data/meta.json` | When the index was fetched, and counts, as `stats` prints it. |
+
+It is derived from mooncakes.io's registry index, and module descriptions are
+their authors' own.
+
 ## CLI
 
 ```sh
@@ -57,6 +70,7 @@ gaato/http
 | `dependents MODULE...` | Modules that depend on MODULE, as a tree. |
 | `deps MODULE...` | Modules MODULE depends on, as a tree. |
 | `top [-n N] [--by direct\|transitive\|owners]` | A ranking, as TSV. |
+| `stats` | When the index was fetched, and counts of modules, versions and edges, as JSON. |
 | `versions` | Every published version, as one JSON object per line. |
 | `modules` | Each module's description, repository, licence and keywords, from its current version, as one JSON object per line. |
 
