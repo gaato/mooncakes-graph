@@ -126,6 +126,12 @@ pub fn Graph::behind(self : Graph, a : Int32, b : Int32) -> Bool {
 }
 
 ///|
+/// Whether version `v` of `b` was published and then yanked.
+pub fn Graph::version_yanked(self : Graph, b : Int32, v : String) -> Bool {
+  self.history[b].iter().any(r => r.version == v && r.yanked)
+}
+
+///|
 pub fn Graph::size(self : Graph) -> Int32 {
   self.names.length()
 }

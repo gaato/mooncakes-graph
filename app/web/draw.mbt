@@ -20,6 +20,26 @@ extern "js" fn set_dash(
 extern "js" fn now_ms() -> Double = "() => performance.now()"
 
 ///|
+/// A line through `text` drawn at (x, y) with the current font, as
+/// mooncakes.io marks yanked modules in its search results.
+extern "js" fn strike_text(
+  ctx : @dom.CanvasRenderingContext2D,
+  text : String,
+  x : Double,
+  y : Double,
+  thickness : Double,
+  color : String,
+) -> Unit =
+  #|(c, t, x, y, h, color) => {
+  #|  const m = c.measureText(t);
+  #|  const mid = y - m.actualBoundingBoxAscent * 0.45;
+  #|  const fill = c.fillStyle;
+  #|  c.fillStyle = color;
+  #|  c.fillRect(x, mid - h / 2, m.width, h);
+  #|  c.fillStyle = fill;
+  #|}
+
+///|
 extern "js" fn prefers_reduced_motion() -> Bool =
   #|() => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
@@ -213,6 +233,7 @@ fn draw() -> Unit {
   ctx.reset_transform()
   ctx.set_font("\{(12.0 * dpr).to_int()}px system-ui, sans-serif")
   ctx.set_fill_style(style(if dark { "#e5e7eb" } else { "#111827" }))
+  let strike = if dark { "#6b7280" } else { "#9ca3af" }
   let few_impacted = selecting && scene.impact_count <= 30
   let label_all = scene.focus_layout && scene.sim_nodes.length() <= 80
   for k, i in scene.sim_nodes {
@@ -230,7 +251,12 @@ fn draw() -> Unit {
     if sx < -200.0 || sy < -20.0 || sx > w * dpr + 20.0 || sy > h * dpr + 20.0 {
       continue
     }
-    ctx.fill_text(graph.names[i], sx + (screen_r + 3.0) * dpr, sy + 4.0 * dpr)
+    let lx = sx + (screen_r + 3.0) * dpr
+    let ly = sy + 4.0 * dpr
+    ctx.fill_text(graph.names[i], lx, ly)
+    if graph.yanked[i] {
+      strike_text(ctx, graph.names[i], lx, ly, 1.5 * dpr, strike)
+    }
   }
 }
 

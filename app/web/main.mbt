@@ -563,7 +563,15 @@ fn search_view(emit : Emit[Msg]) -> Val[Html] {
   @rui.combobox(
     id="search",
     options=order.map(i => {
-      @rui.combobox_option(value=graph.names[i], label=graph.names[i])
+      // Option labels are plain text, so yanked modules say so in words.
+      @rui.combobox_option(
+        value=graph.names[i],
+        label=if graph.yanked[i] {
+          graph.names[i] + " (yanked)"
+        } else {
+          graph.names[i]
+        },
+      )
     }),
     placeholder="Search modules",
     empty_text="No module matches",
@@ -652,7 +660,10 @@ fn ranking_view(emit : Emit[Msg]) -> Html {
     let name = graph.names[i]
     items.push(
       @html.li(on_click=emit(Pick(name)), [
-        @html.span(class="name", name),
+        @html.span(
+          class=if graph.yanked[i] { "name yanked" } else { "name" },
+          name,
+        ),
         @html.span(class="num", "\{t[i]}"),
       ]),
     )
@@ -698,13 +709,27 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
     Some(l) => " · \{l}"
     None => ""
   }
-  // One row of a module list: the module, and the version of `of` asked for
-  // along that edge, marked when older than the current one.
-  let module_row = fn(n : String, asked : String?, behind : Bool) {
+  // Whether `v` of `t` was yanked, when `t` itself is not wholly yanked
+  // (its struck-through name already says so).
+  let yanked_version = fn(t : Int32, v : String?) {
+    v is Some(v) && !graph.yanked[t] && graph.version_yanked(t, v)
+  }
+  // One row of a module list: the module, and the version asked for along
+  // that edge, marked when it is from an older release line and struck
+  // through when it was yanked.
+  let module_row = fn(
+    n : String,
+    asked : String?,
+    behind : Bool,
+    yanked : Bool,
+  ) {
+    let id = graph.ids.get(n)
+    let gone = id is Some(b) && graph.yanked[b]
     let version = match asked {
       Some(v) =>
         @html.span(
-          class=if behind { "ver behind" } else { "ver" },
+          class=(if behind { "ver behind" } else { "ver" }) +
+            (if yanked { " yanked" } else { "" }),
           if behind {
             "\{v} (older line)"
           } else {
@@ -713,18 +738,24 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
         )
       None => text("")
     }
-    if graph.ids.contains(n) {
-      @html.li(on_click=emit(Pick(n)), [@html.span(class="name", n), version])
+    let label = @html.span(class=if gone { "name yanked" } else { "name" }, n)
+    if id is Some(_) {
+      @html.li(on_click=emit(Pick(n)), [label, version])
     } else {
       @html.li(class="missing", [@html.span(class="name", n), version])
     }
   }
   let deps = record.deps.map(d => {
-    let behind = match graph.ids.get(d.name) {
-      Some(b) => graph.behind(i, b)
-      None => false
+    match graph.ids.get(d.name) {
+      Some(b) =>
+        module_row(
+          d.name,
+          d.version,
+          graph.behind(i, b),
+          yanked_version(b, d.version),
+        )
+      None => module_row(d.name, d.version, false, false)
     }
-    module_row(d.name, d.version, behind)
   })
   let dependents = graph.dependents[i].copy()
   dependents.sort_by((a, b) => m.transitive[b].compare(m.transitive[a]))
@@ -812,7 +843,13 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
     @html.ul(
       class="list",
       dependents.map(d => {
-        module_row(graph.names[d], graph.asked(d, i), graph.behind(d, i))
+        let asked = graph.asked(d, i)
+        module_row(
+          graph.names[d],
+          asked,
+          graph.behind(d, i),
+          yanked_version(i, asked),
+        )
       }),
     ),
   ])

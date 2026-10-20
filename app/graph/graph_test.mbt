@@ -112,3 +112,12 @@ test "asked versions and who is behind" {
   assert_true(!g.behind(id("b/range"), core))
   assert_true(!g.behind(id("b/path"), core))
 }
+
+///|
+test "version_yanked" {
+  let g = sample()
+  let lib = g.ids["b/lib"]
+  assert_true(g.version_yanked(lib, "0.2.0"))
+  assert_true(!g.version_yanked(lib, "0.1.0"))
+  assert_true(!g.version_yanked(lib, "9.9.9"))
+}

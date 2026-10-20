@@ -34,6 +34,7 @@ pub fn Graph::new(ArrayView[(String, Array[@mooncakes_index.VersionRecord])]) ->
 pub fn Graph::size(Self) -> Int
 pub fn Graph::transitive_dependents(Self, Int, excluded? : Array[Bool]) -> Array[Int]
 pub fn Graph::transitive_deps(Self, Int, excluded? : Array[Bool]) -> Array[Int]
+pub fn Graph::version_yanked(Self, Int, String) -> Bool
 
 pub(all) struct Metrics {
   direct : Array[Int]

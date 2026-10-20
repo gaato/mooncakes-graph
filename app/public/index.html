@@ -17,6 +17,7 @@
     --accent: #2563eb;
     --accent-fg: #ffffff;
     --warn: #b45309;
+    --strike: #9ca3af;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
@@ -30,6 +31,7 @@
       --accent: #3b82f6;
       --accent-fg: #ffffff;
       --warn: #fbbf24;
+      --strike: #6b7280;
       color-scheme: dark;
     }
   }
@@ -115,6 +117,11 @@
   .list .name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .list .ver { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .list .ver.behind { color: var(--warn); }
+  /* Yanked, struck through in grey as mooncakes.io's search results do. */
+  .yanked {
+    text-decoration: line-through; text-decoration-color: var(--strike);
+    text-decoration-thickness: 1.5px;
+  }
   .list li:hover { background: var(--hover); }
   .list li.missing { color: var(--muted); cursor: default; }
   .list li.missing:hover { background: none; }
