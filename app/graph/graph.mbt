@@ -1,9 +1,4 @@
 ///|
-/// Modules the map hides by default: they are depended on by about a quarter
-/// of the registry each, and pull everything into one ball.
-pub let default_hubs : Array[String] = ["moonbitlang/x", "moonbitlang/async"]
-
-///|
 /// Owners whose modules are in the index but not on mooncakes.io (neither the
 /// site nor its API knows them): the registry's own test data, `test/B` to
 /// `test/G`, which only depend on each other.

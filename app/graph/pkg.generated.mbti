@@ -8,8 +8,6 @@ import {
 // Values
 pub let absent_owners : Array[String]
 
-pub let default_hubs : Array[String]
-
 // Errors
 
 // Types and methods

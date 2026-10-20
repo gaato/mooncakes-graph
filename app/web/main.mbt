@@ -109,7 +109,6 @@ enum Status {
 ///|
 struct Model {
   status : Status
-  show_hubs : Bool
   show_yanked : Bool
   show_isolated : Bool
   focused : Bool
@@ -136,7 +135,6 @@ enum Msg {
   PointerMove(@dom.MouseEvent)
   PointerUp(@dom.MouseEvent)
   PointerLeave
-  ToggleHubs
   ToggleYanked
   ToggleIsolated
   ToggleFocus
@@ -185,14 +183,10 @@ fn apply_selection(model : Model, name : String?) -> Model {
   scene.selected = i
   let needs_toggle = i != NO_NODE &&
     (
-      (scene.hub[i] && !scene.show_hubs) ||
       (graph.yanked[i] && !scene.show_yanked) ||
       (!scene.focused && scene.isolated[i] && !scene.show_isolated)
     )
   if needs_toggle {
-    if scene.hub[i] {
-      scene.show_hubs = true
-    }
     if graph.yanked[i] {
       scene.show_yanked = true
     }
@@ -202,7 +196,6 @@ fn apply_selection(model : Model, name : String?) -> Model {
     rebuild()
     model = {
       ..model,
-      show_hubs: scene.show_hubs,
       show_yanked: scene.show_yanked,
       show_isolated: scene.show_isolated,
       revision: model.revision + 1,
@@ -385,14 +378,6 @@ fn step_model(model : Model, msg : Msg) -> (Model, Cmd) {
       set_hovered(NO_NODE)
       ({ ..model, hovered: None, }, @rabbita.none)
     }
-    ToggleHubs => {
-      scene.show_hubs = !scene.show_hubs
-      rebuild()
-      (
-        { ..model, show_hubs: scene.show_hubs, revision: model.revision + 1, },
-        @rabbita.none,
-      )
-    }
     ToggleYanked => {
       scene.show_yanked = !scene.show_yanked
       rebuild()
@@ -448,7 +433,6 @@ fn main {
         (
           {
             status: Loading,
-            show_hubs: scene.show_hubs,
             show_yanked: scene.show_yanked,
             show_isolated: scene.show_isolated,
             focused: scene.focused,
@@ -509,12 +493,6 @@ fn header_view(emit : Emit[Msg], model : Val[Model]) -> Val[Html] {
       "\{m.status is Ready}|\{m.revision}|\{selected}"
     })
     .switch_by(_ => search_view(emit), by=key => key)
-  let hubs = toggle_view(
-    emit,
-    model.map(m => m.show_hubs),
-    "moonbitlang/x & async",
-    ToggleHubs,
-  )
   let yanked = toggle_view(
     emit,
     model.map(m => m.show_yanked),
@@ -527,14 +505,14 @@ fn header_view(emit : Emit[Msg], model : Val[Model]) -> Val[Html] {
     "unconnected",
     ToggleIsolated,
   )
-  search.view4(hubs, yanked, isolated, (search, hubs, yanked, isolated) => {
+  search.view3(yanked, isolated, (search, yanked, isolated) => {
     @html.header(class="top", [
       div(class="brand", [
         @html.span(class="title", "mooncakes graph"),
         @html.span(class="badge", "unofficial"),
       ]),
       div(class="search", [search]),
-      div(class="toggles", [hubs, yanked, isolated]),
+      div(class="toggles", [yanked, isolated]),
     ])
   })
 }
@@ -650,11 +628,7 @@ fn ranking_view(emit : Emit[Msg]) -> Html {
       @mooncakes_index.compare_names(graph.names[a], graph.names[b])
     }
   })
-  let note = if scene.show_hubs {
-    "Modules that depend on it, directly or not."
-  } else {
-    "Modules that depend on it, directly or not, with moonbitlang/x and async hidden."
-  }
+  let note = "Modules that depend on it, directly or not."
   let items = []
   for i in order[:order.length().min(20)] {
     let name = graph.names[i]

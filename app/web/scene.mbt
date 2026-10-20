@@ -8,7 +8,6 @@ const NO_NODE : Int32 = -1
 ///|
 struct Scene {
   mut graph : @graph.Graph?
-  mut show_hubs : Bool
   mut show_yanked : Bool
   mut show_isolated : Bool
   /// With a selection, lay out only the modules related to it.
@@ -20,7 +19,6 @@ struct Scene {
   mut isolated : Array[Bool]
   /// Per node: left out of the layout and the metrics.
   mut hidden : Array[Bool]
-  mut hub : Array[Bool]
   mut metrics : @graph.Metrics
   /// Drawn radius: `base_radius`, capped lower in a focus layout where a
   /// hub would otherwise cover the few modules around it.
@@ -74,14 +72,12 @@ struct Scene {
 ///|
 let scene : Scene = {
   graph: None,
-  show_hubs: false,
   show_yanked: true,
   show_isolated: false,
   focused: true,
   focus_layout: false,
   isolated: [],
   hidden: [],
-  hub: [],
   metrics: { direct: [], transitive: [], owners: [], },
   radius: [],
   base_radius: [],
@@ -144,7 +140,6 @@ fn load_graph(text : String) -> Int32 {
   let graph = @graph.Graph::from_records(records)
   let n = graph.size()
   scene.graph = Some(graph)
-  scene.hub = graph.mask(@graph.default_hubs)
   scene.px = Array::make(n, 0.0)
   scene.py = Array::make(n, 0.0)
   scene.placed = Array::make(n, false)
@@ -162,10 +157,7 @@ fn load_graph(text : String) -> Int32 {
 fn rebuild() -> Unit {
   guard scene.graph is Some(graph) else { return }
   let n = graph.size()
-  let toggled = Array::makei(n, i => {
-    (!scene.show_hubs && scene.hub[i]) ||
-    (!scene.show_yanked && graph.yanked[i])
-  })
+  let toggled = Array::makei(n, i => !scene.show_yanked && graph.yanked[i])
   scene.isolated = Array::makei(n, i => {
     !graph.deps[i].iter().any(j => !toggled[j]) &&
     !graph.dependents[i].iter().any(j => !toggled[j])
