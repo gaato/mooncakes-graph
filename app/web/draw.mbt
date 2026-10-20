@@ -266,7 +266,9 @@ fn draw() -> Unit {
     } else if i == hovered {
       1.0e9
     } else {
-      scene.radius[i]
+      // Bigger first; between equal sizes (capped hubs), the more
+      // depended-on.
+      scene.radius[i] * 1.0e5 + Double::from_int(scene.metrics.transitive[i])
     }
   }
   candidates.sort_by((a, b) => rank(b).compare(rank(a)))
@@ -280,17 +282,25 @@ fn draw() -> Unit {
     if sx < -200.0 || sy < -20.0 || sx > w * dpr + 20.0 || sy > h * dpr + 20.0 {
       continue
     }
-    let lx = sx + (screen_r + 3.0) * dpr
     let ly = sy + 4.0 * dpr
-    let x1 = lx + text_width(ctx, graph.names[i])
     let y0 = ly - line + 3.0 * dpr
-    let overlaps = taken
+    let width = text_width(ctx, graph.names[i])
+    let free = fn(x0 : Double) {
+      !taken
       .iter()
-      .any(r => lx < r.2 && x1 > r.0 && y0 < r.3 && y0 + line > r.1)
-    if overlaps {
+      .any(r => x0 < r.2 && x0 + width > r.0 && y0 < r.3 && y0 + line > r.1)
+    }
+    // To the right of the node, or failing that to its left.
+    let right = sx + (screen_r + 3.0) * dpr
+    let left = sx - (screen_r + 3.0) * dpr - width
+    let lx = if free(right) {
+      right
+    } else if free(left) {
+      left
+    } else {
       continue
     }
-    taken.push((lx, y0, x1, y0 + line))
+    taken.push((lx, y0, lx + width, y0 + line))
     ctx.fill_text(graph.names[i], lx, ly)
     if graph.yanked[i] {
       strike_text(ctx, graph.names[i], lx, ly, 1.5 * dpr, strike)
