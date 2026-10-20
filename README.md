@@ -20,7 +20,7 @@ authors' own.
 
 ```sh
 moon update
-moon run --target native app/cli -- dependents OWNER/MODULE
+moon run --target native app/cmd/mooncakes-graph -- dependents OWNER/MODULE
 ```
 
 ```

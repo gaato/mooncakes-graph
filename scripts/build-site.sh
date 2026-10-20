@@ -4,9 +4,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-moon build --target native --release app/cli >/dev/null
+moon build --target native --release app/cmd/mooncakes-graph >/dev/null
 mkdir -p app/public/data
-cli=_build/native/release/build/gaato/mooncakes-graph/cli/cli.exe
+cli=_build/native/release/build/gaato/mooncakes-graph/cmd/mooncakes-graph/mooncakes-graph.exe
 "$cli" versions >app/public/data/versions.jsonl
 # Read only when a module is first opened.
 "$cli" modules >app/public/data/modules.jsonl

@@ -7,8 +7,8 @@ cd "$(dirname "$0")/.."
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-moon build --target native --release app/cli >/dev/null
-cli=_build/native/release/build/gaato/mooncakes-graph/cli/cli.exe
+moon build --target native --release app/cmd/mooncakes-graph >/dev/null
+cli=_build/native/release/build/gaato/mooncakes-graph/cmd/mooncakes-graph/mooncakes-graph.exe
 
 fail=0
 check() {
