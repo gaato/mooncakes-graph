@@ -21,19 +21,23 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      # Pinned toolchain: bump together with moonbit-version and ci.yml.
+      image: ghcr.io/gaato/moonbit:0.10.15
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
 
-      - name: Set up MoonBit
+      - name: Fetch the registry index and Warren
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s "$(cat moonbit-version)"
-          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-          "$HOME/.moon/bin/moon" update
-          "$HOME/.moon/bin/moon" install moonbit-community/warren@0.4.5
+          moon update
+          moon install moonbit-community/warren@0.4.5
 
       - name: Build site
         run: ./scripts/build-site.sh
@@ -44,6 +48,7 @@ jobs:
           path: app/dist
 
   deploy:
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

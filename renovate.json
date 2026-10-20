@@ -10,7 +10,7 @@
   ],
   "packageRules": [
     {
-      "description": "Merge non-major GitHub Actions updates once CI passes; crates, images, runners and majors stay manual.",
+      "description": "Merge non-major GitHub Actions updates once CI passes; the MoonBit image moves with moonbit-version, so images and majors stay manual.",
       "matchManagers": [
         "github-actions"
       ],

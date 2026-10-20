@@ -9,44 +9,36 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  gates:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      # Pinned toolchain: bump together with moonbit-version and pages.yml.
+      image: ghcr.io/gaato/moonbit:0.10.15
     steps:
-      - name: Checkout code
+      - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
-      - name: Set up MoonBit
+      - name: Trust the workspace (container runs as a different user)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # The gates compare the CLI with a Python reader and with tree(1).
+      - name: Install python3 and tree
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: apt-get update && apt-get install -y --no-install-recommends python3 tree
+
+      - name: Fetch the registry index
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s "$(cat moonbit-version)"
-          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-          "$HOME/.moon/bin/moon" update
+          moon version --all
+          moon update
 
-      - name: Check formatting and interfaces
-        run: |
-          moon fmt --check
-          moon info
-          git diff --exit-code -- '*.mbti'
-
-      # Warnings fail the build: reserved words (warning 35) and deprecations
-      # are cheap to fix now and breaking to fix after publishing.
-      - name: Check with warnings denied
-        run: |
-          moon check --deny-warn --target native
-          moon check --deny-warn --target js
-          moon check --deny-warn --target wasm-gc force/src force/src/internal/quadtree mooncakes_index/src
-
-      - name: Check the changelogs
-        run: ./scripts/release.sh check
-
-      - name: Test
-        run: |
-          moon test --target native
-          moon test --target js
-          moon test --target wasm-gc -p gaato/force -p gaato/force/internal/quadtree -p gaato/mooncakes_index
-
-      # Compares the CLI against an independent Python reader and tree(1).
       - name: Gates
-        run: |
-          sudo apt-get install -y --no-install-recommends tree
-          ./scripts/gates.sh
+        run: ./scripts/gates.sh

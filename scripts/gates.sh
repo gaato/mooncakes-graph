@@ -1,8 +1,31 @@
 #!/usr/bin/env bash
-# Number gates against the live index: the CLI must agree with the
-# independent Python reader in scripts/oracle.py.
+# The repository's checks, the same locally and in CI: formatting, interfaces,
+# warnings, tests on every backend, changelogs, and then the number gates
+# against the live index, where the CLI must agree with the independent Python
+# reader in scripts/oracle.py and with tree(1).
+# Needs `moon update` to have fetched the index, python3 and tree.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+run() { echo "+ $*"; "$@"; }
+
+run moon fmt --check
+run moon info
+# Only meaningful in CI: in a jj working copy `git diff` compares against the
+# parent change, so uncommitted edits would look stale.
+if [ "${CI:-}" = true ]; then
+  git diff --exit-code -- '*.mbti' || { echo "pkg.generated.mbti is stale: run 'moon info' and commit" >&2; exit 1; }
+fi
+# Warnings fail: reserved words (warning 35) and deprecations are cheap to fix
+# now and breaking to fix after publishing.
+run moon check --deny-warn --target native
+run moon check --deny-warn --target js
+libs=(force/src force/src/internal/quadtree mooncakes_index/src)
+run moon check --deny-warn --target wasm-gc "${libs[@]}"
+run moon test --target native
+run moon test --target js
+run moon test --target wasm-gc -p gaato/force -p gaato/force/internal/quadtree -p gaato/mooncakes_index
+run scripts/release.sh check
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
@@ -41,4 +64,5 @@ python3 -I scripts/oracle.py stats | python3 -I -c 'import json,sys; print(json.
 name="stats matches oracle"; check cmp -s "$tmp/cli_stats" "$tmp/oracle_stats"
 cat "$tmp/cli_stats"
 
+[ "$fail" = 0 ] && echo "gates: OK"
 exit "$fail"
