@@ -29,7 +29,9 @@ Unofficial; not affiliated with mooncakes.io or the MoonBit team.
   - `yanked`: modules whose every version is yanked are drawn faded.
   - `unconnected`: modules with no dependency edges start hidden.
 
-The data is the registry index as `moon update` fetches it. A daily job turns
+The data is the registry index as `moon update` fetches it, less the
+registry's test modules (`test/*`), which are in the index but not on the
+site. A daily job turns
 it into `data/versions.jsonl`, and the browser computes everything else.
 Descriptions and the rest come from `data/modules.jsonl`, which is fetched
 when a module is first opened.

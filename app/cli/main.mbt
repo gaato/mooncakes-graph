@@ -103,7 +103,10 @@ fn load_index(parsed : @args.ParsedArgs) -> @index_fs.Index raise {
   if index.skipped > 0 {
     eprintln("mooncakes-graph: skipped \{index.skipped} unreadable index lines")
   }
-  index
+  let modules = index.modules.filter(m => {
+    !@graph.absent_owners.contains(@mooncakes_index.owner(m.0).to_owned())
+  })
+  { ..index, modules, }
 }
 
 ///|

@@ -4,6 +4,12 @@
 pub let default_hubs : Array[String] = ["moonbitlang/x", "moonbitlang/async"]
 
 ///|
+/// Owners whose modules are in the index but not on mooncakes.io (neither the
+/// site nor its API knows them): the registry's own test data, `test/B` to
+/// `test/G`, which only depend on each other.
+pub let absent_owners : Array[String] = ["test"]
+
+///|
 /// The module dependency graph at the current version of every module.
 ///
 /// Node ids are indices into `names`, which is sorted by

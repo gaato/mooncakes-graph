@@ -20,10 +20,16 @@ def index_dir():
     return os.path.join(home, "registry", "index", "user")
 
 
+# Index-only test data that mooncakes.io does not have.
+ABSENT_OWNERS = {"test"}
+
+
 def records():
     """All versions, modules sorted by name, versions in file order."""
     modules = []
     for path in glob.glob(os.path.join(index_dir(), "*", "*.index")):
+        if os.path.basename(os.path.dirname(path)) in ABSENT_OWNERS:
+            continue
         versions = []
         with open(path, encoding="utf-8") as f:
             for line in f:
