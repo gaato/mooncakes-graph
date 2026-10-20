@@ -20,17 +20,15 @@ authors' own.
 
 ```sh
 moon update
-moon run --target native app/cli -- dependents gaato/http
+moon run --target native app/cli -- dependents OWNER/MODULE
 ```
 
 ```
-gaato/http
-├── gaato/anthropic
-├── gaato/discord
-│   ├── gaato/discord-cli
-│   └── gaato/discord_voice
-…
-11 modules (index as of 2026-10-19T07:49Z)
+owner/module
+├── someone/app
+│   └── someone/app-cli
+└── other/tool
+3 modules (index as of <when moon update last ran>)
 ```
 
 | command | output |
