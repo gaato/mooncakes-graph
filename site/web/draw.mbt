@@ -131,7 +131,7 @@ fn draw() -> Unit {
   let batch = fn(want : Int32) {
     ctx.begin_path()
     for a in scene.sim_nodes {
-      for b in graph.deps[a] {
+      for b in graph.deps(a) {
         if index[b] != NO_NODE && kind(a, b) == want {
           ctx.move_to(xs[index[a]], ys[index[a]])
           ctx.line_to(xs[index[b]], ys[index[b]])
@@ -179,7 +179,7 @@ fn draw() -> Unit {
       ) ||
       (!selecting && hovered != NO_NODE && !scene.near[i])
     let fade = if faded { 0.15 } else { 1.0 }
-    let alpha = fade * (if graph.yanked[i] { 0.35 } else { 1.0 })
+    let alpha = fade * (if graph.all_yanked(i) { 0.35 } else { 1.0 })
     set_alpha(ctx, alpha)
     ctx.set_fill_style(style(scene.color[i]))
     ctx.begin_path()
@@ -193,7 +193,7 @@ fn draw() -> Unit {
   let heads = fn(want : Int32) {
     ctx.begin_path()
     for a in scene.sim_nodes {
-      for b in graph.deps[a] {
+      for b in graph.deps(a) {
         if index[b] != NO_NODE && kind(a, b) == want {
           arrow_head(
             ctx,
@@ -268,7 +268,8 @@ fn draw() -> Unit {
     } else {
       // Bigger first; between equal sizes (capped hubs), the more
       // depended-on.
-      scene.radius[i] * 1.0e5 + Double::from_int(scene.metrics.transitive[i])
+      scene.radius[i] * 1.0e5 +
+      Double::from_int(current_metrics().get(i, Transitive))
     }
   }
   candidates.sort_by((a, b) => rank(b).compare(rank(a)))
@@ -284,7 +285,7 @@ fn draw() -> Unit {
     }
     let ly = sy + 4.0 * dpr
     let y0 = ly - line + 3.0 * dpr
-    let width = text_width(ctx, graph.names[i])
+    let width = text_width(ctx, graph.name(i))
     let free = fn(x0 : Double) {
       !taken
       .iter()
@@ -301,9 +302,9 @@ fn draw() -> Unit {
       continue
     }
     taken.push((lx, y0, lx + width, y0 + line))
-    ctx.fill_text(graph.names[i], lx, ly)
-    if graph.yanked[i] {
-      strike_text(ctx, graph.names[i], lx, ly, 1.5 * dpr, strike)
+    ctx.fill_text(graph.name(i), lx, ly)
+    if graph.all_yanked(i) {
+      strike_text(ctx, graph.name(i), lx, ly, 1.5 * dpr, strike)
     }
   }
 }

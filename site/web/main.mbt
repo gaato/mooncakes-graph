@@ -145,7 +145,7 @@ enum Msg {
 ///|
 fn name_of(i : Int32) -> String? {
   match scene.graph {
-    Some(g) if i != NO_NODE => Some(g.names[i])
+    Some(g) if i != NO_NODE => Some(g.name(i))
     _ => None
   }
 }
@@ -176,18 +176,18 @@ fn url_for(name : String?) -> String {
 fn apply_selection(model : Model, name : String?) -> Model {
   guard scene.graph is Some(graph) else { return { ..model, wanted: name, } }
   let i = match name {
-    Some(n) => graph.ids.get(n).unwrap_or(NO_NODE)
+    Some(n) => graph.find(n).unwrap_or(NO_NODE)
     None => NO_NODE
   }
   let mut model = model
   scene.selected = i
   let needs_toggle = i != NO_NODE &&
     (
-      (graph.yanked[i] && !scene.show_yanked) ||
+      (graph.all_yanked(i) && !scene.show_yanked) ||
       (!scene.focused && scene.isolated[i] && !scene.show_isolated)
     )
   if needs_toggle {
-    if graph.yanked[i] {
+    if graph.all_yanked(i) {
       scene.show_yanked = true
     }
     if !scene.focused && scene.isolated[i] {
@@ -528,26 +528,17 @@ fn search_view(emit : Emit[Msg]) -> Val[Html] {
       ),
     )
   }
-  let t = scene.metrics.transitive
-  let order = Array::makei(graph.size(), i => i)
-  order.sort_by((a, b) => {
-    let c = t[b].compare(t[a])
-    if c != 0 {
-      c
-    } else {
-      @mooncakes_index.compare_names(graph.names[a], graph.names[b])
-    }
-  })
+  let order = current_metrics().ranking(Transitive)
   @rui.combobox(
     id="search",
     options=order.map(i => {
       // Option labels are plain text, so yanked modules say so in words.
       @rui.combobox_option(
-        value=graph.names[i],
-        label=if graph.yanked[i] {
-          graph.names[i] + " (yanked)"
+        value=graph.name(i),
+        label=if graph.all_yanked(i) {
+          graph.name(i) + " (yanked)"
         } else {
-          graph.names[i]
+          graph.name(i)
         },
       )
     }),
@@ -618,27 +609,18 @@ fn status_view(m : Model) -> Html {
 ///|
 fn ranking_view(emit : Emit[Msg]) -> Html {
   guard scene.graph is Some(graph) else { return text("") }
-  let order = scene.sim_nodes.copy()
-  let t = scene.metrics.transitive
-  order.sort_by((a, b) => {
-    let c = t[b].compare(t[a])
-    if c != 0 {
-      c
-    } else {
-      @mooncakes_index.compare_names(graph.names[a], graph.names[b])
-    }
-  })
+  let order = current_metrics().ranking(Transitive, among=scene.sim_nodes)
   let note = "Modules that depend on it, directly or not."
   let items = []
   for i in order[:order.length().min(20)] {
-    let name = graph.names[i]
+    let name = graph.name(i)
     items.push(
       @html.li(on_click=emit(Pick(name)), [
         @html.span(
-          class=if graph.yanked[i] { "name yanked" } else { "name" },
+          class=if graph.all_yanked(i) { "name yanked" } else { "name" },
           name,
         ),
-        @html.span(class="num", "\{t[i]}"),
+        @html.span(class="num", "\{current_metrics().get(i, Transitive)}"),
       ]),
     )
   }
@@ -651,12 +633,12 @@ fn ranking_view(emit : Emit[Msg]) -> Html {
 
 ///|
 fn detail_view(emit : Emit[Msg], name : String) -> Html {
-  guard scene.graph is Some(graph) && graph.ids.get(name) is Some(i) else {
+  guard scene.graph is Some(graph) && graph.find(name) is Some(i) else {
     return text("")
   }
-  let record = graph.current[i]
-  let owner = graph.owners[i]
-  let m = scene.metrics
+  let record = graph.current(i)
+  let owner = graph.owner(i)
+  let m = current_metrics()
   let about = abouts.get(name).unwrap_or(@mooncakes_index.About::new())
   let day = fn(t : String?) {
     match t {
@@ -668,7 +650,7 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
     Some(d) => " · " + d
     None => ""
   }
-  let history = graph.history[i]
+  let history = graph.history(i)
   let first = history.iter().filter_map(v => day(v.created_at)).head()
   let releases = if history.length() == 1 {
     "1 version"
@@ -683,28 +665,17 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
     Some(l) => " · \{l}"
     None => ""
   }
-  // Whether `v` of `t` was yanked, when `t` itself is not wholly yanked
-  // (its struck-through name already says so).
-  let yanked_version = fn(t : Int32, v : String?) {
-    v is Some(v) && !graph.yanked[t] && graph.version_yanked(t, v)
-  }
-  // One row of a module list: the module, and the version asked for along
-  // that edge, marked when it is from an older release line and struck
-  // through when it was yanked.
-  let module_row = fn(
-    n : String,
-    asked : String?,
-    behind : Bool,
-    yanked : Bool,
-  ) {
-    let id = graph.ids.get(n)
-    let gone = id is Some(b) && graph.yanked[b]
-    let version = match asked {
+  // One row of a module list: module `n` (its node, if the index has it),
+  // and the version asked for along the edge, marked when it is from an
+  // older release line and struck through when it was yanked.
+  let module_row = fn(n : String, node : Int32?, r : @graph.Requirement) {
+    let gone = node is Some(b) && graph.all_yanked(b)
+    let version = match r.asked {
       Some(v) =>
         @html.span(
-          class=(if behind { "ver behind" } else { "ver" }) +
-            (if yanked { " yanked" } else { "" }),
-          if behind {
+          class=(if r.behind { "ver behind" } else { "ver" }) +
+            (if r.yanked { " yanked" } else { "" }),
+          if r.behind {
             "\{v} (older line)"
           } else {
             v
@@ -713,27 +684,17 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
       None => text("")
     }
     let label = @html.span(class=if gone { "name yanked" } else { "name" }, n)
-    if id is Some(_) {
+    if node is Some(_) {
       @html.li(on_click=emit(Pick(n)), [label, version])
     } else {
       @html.li(class="missing", [@html.span(class="name", n), version])
     }
   }
-  let deps = record.deps.map(d => {
-    match graph.ids.get(d.name) {
-      Some(b) =>
-        module_row(
-          d.name,
-          d.version,
-          graph.behind(i, b),
-          yanked_version(b, d.version),
-        )
-      None => module_row(d.name, d.version, false, false)
-    }
-  })
-  let dependents = graph.dependents[i].copy()
-  dependents.sort_by((a, b) => m.transitive[b].compare(m.transitive[a]))
-  let behind = dependents.filter(d => graph.behind(d, i)).length()
+  let deps = graph.requirements(i).map(r => module_row(r.name, r.node, r))
+  let dependents = m
+    .ranking(Transitive, among=graph.dependents(i))
+    .map(d => (d, graph.requirement(dependent=d, dependency=i).unwrap()))
+  let behind = dependents.filter(d => d.1.behind).length()
   let line = @mooncakes_index.release_line(record.version).unwrap_or(
     record.version,
   )
@@ -763,7 +724,7 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
     } else {
       div(class="keywords", about.keywords.map(k => @html.span(k)))
     },
-    if graph.yanked[i] {
+    if graph.all_yanked(i) {
       let why = match about.yanked_reason {
         Some(r) => ": \{r}"
         None => "."
@@ -778,11 +739,11 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
     },
     @html.dl(class="metrics", [
       @html.dt("Depended on by, in all"),
-      @html.dd("\{m.transitive[i]}"),
+      @html.dd("\{m.get(i, Transitive)}"),
       @html.dt("Directly"),
-      @html.dd("\{m.direct[i]}"),
+      @html.dd("\{m.get(i, Direct)}"),
       @html.dt("Other owners"),
-      @html.dd("\{m.owners[i]}"),
+      @html.dd("\{m.get(i, Owners)}"),
     ]),
     div(class="links", [
       link("https://mooncakes.io/docs/\{name}", "Docs on mooncakes.io"),
@@ -816,15 +777,7 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
     },
     @html.ul(
       class="list",
-      dependents.map(d => {
-        let asked = graph.asked(d, i)
-        module_row(
-          graph.names[d],
-          asked,
-          graph.behind(d, i),
-          yanked_version(i, asked),
-        )
-      }),
+      dependents.map(d => module_row(graph.name(d.0), Some(d.0), d.1)),
     ),
   ])
 }

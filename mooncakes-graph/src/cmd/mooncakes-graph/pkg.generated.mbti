@@ -7,13 +7,7 @@ package "gaato/mooncakes-graph/cmd/mooncakes-graph"
 type Fatal
 
 // Types and methods
-type Direction
-
-type Forest
-
 type Loaded
-
-type TreeNode
 
 // Type aliases
 

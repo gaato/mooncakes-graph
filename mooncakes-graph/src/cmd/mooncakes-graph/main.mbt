@@ -88,9 +88,9 @@ fn run(args : ArrayView[String]) -> Int32 raise {
 let common_options : Array[@args.OptionSpec] = [@args.option("index")]
 
 ///|
-/// The index as the commands see it: without `@graph.absent_owners`.
+/// The index as the commands see it.
 struct Loaded {
-  modules : Array[@mooncakes_index.Module]
+  graph : @graph.Graph
   /// When `moon update` last moved the index (Unix seconds), if known.
   fetched_at : Int64?
 }
@@ -114,10 +114,7 @@ fn load_index(parsed : @args.ParsedArgs) -> Loaded raise {
   if index.skipped > 0 {
     eprintln("mooncakes-graph: skipped \{index.skipped} unreadable index lines")
   }
-  let modules = index.modules.filter(m => {
-    !@graph.absent_owners.contains(@mooncakes_index.owner(m.name).to_owned())
-  })
-  { modules, fetched_at: index.fetched_at, }
+  { graph: @graph.Graph::new(index.modules), fetched_at: index.fetched_at, }
 }
 
 ///|
@@ -130,11 +127,11 @@ fn versions(args : ArrayView[String]) -> Int32 raise {
       message="versions takes no operands",
     )
   }
-  let index = load_index(parsed)
+  let graph = load_index(parsed).graph
   let out = StringBuilder()
   let mut first = true
-  for module_ in index.modules {
-    for record in module_.versions {
+  for node in 0..<graph.size() {
+    for record in graph.history(node) {
       if !first {
         out.write_char('\n')
       }
@@ -169,10 +166,10 @@ fn modules(args : ArrayView[String]) -> Int32 raise {
       message="modules takes no operands",
     )
   }
-  let index = load_index(parsed)
+  let graph = load_index(parsed).graph
   let out = StringBuilder()
-  for i, module_ in index.modules {
-    guard module_.current() is Some(record) else { continue }
+  for i in 0..<graph.size() {
+    let record = graph.current(i)
     let obj : Map[String, Json] = Map([
       ("name", Json::string(record.name)),
       ("version", Json::string(record.version)),
@@ -187,7 +184,7 @@ fn modules(args : ArrayView[String]) -> Int32 raise {
     }
     out.write_string(Json::object(obj).stringify())
   }
-  if index.modules.length() > 0 {
+  if graph.size() > 0 {
     println(out.to_string())
   }
   0
@@ -203,11 +200,8 @@ fn stats(args : ArrayView[String]) -> Int32 raise {
     raise usage_error("", "stats takes no operands")
   }
   let index = load_index(parsed)
-  let graph = @graph.Graph::new(index.modules)
+  let s = index.graph.stats()
   let count = fn(n : Int32) { Json::number(n.to_double()) }
-  let versions = index.modules.fold(init=0, (n, m) => n + m.versions.length())
-  let with_deps = graph.current.iter().filter(r => !r.deps.is_empty()).count()
-  let all_yanked = graph.yanked.iter().filter(y => y).count()
   let out = Json::object(
     Map([
       (
@@ -217,12 +211,12 @@ fn stats(args : ArrayView[String]) -> Int32 raise {
           None => Json::null()
         },
       ),
-      ("modules", count(graph.size())),
-      ("versions", count(versions)),
-      ("modules_with_deps", count(with_deps)),
-      ("edges", count(graph.edge_count())),
-      ("dangling_edges", count(graph.dangling)),
-      ("all_yanked", count(all_yanked)),
+      ("modules", count(s.modules)),
+      ("versions", count(s.versions)),
+      ("modules_with_deps", count(s.modules_with_deps)),
+      ("edges", count(s.edges)),
+      ("dangling_edges", count(s.dangling_edges)),
+      ("all_yanked", count(s.all_yanked)),
     ]),
   )
   println(out.stringify(indent=2))
@@ -254,24 +248,15 @@ fn top(args : ArrayView[String]) -> Int32 raise {
       }
     None => 20
   }
-  let index = load_index(parsed)
-  let graph = @graph.Graph::new(index.modules)
-  let m = graph.metrics()
-  let key = match parsed.last_value("by") {
-    None | Some("transitive") => m.transitive
-    Some("direct") => m.direct
-    Some("owners") => m.owners
+  let by : @graph.Metric = match parsed.last_value("by") {
+    None | Some("transitive") => Transitive
+    Some("direct") => Direct
+    Some("owners") => Owners
     Some(_) => raise usage_error("by", "expected direct, transitive or owners")
   }
-  let order = Array::makei(graph.size(), i => i)
-  order.sort_by((a, b) => {
-    let c = key[b].compare(key[a])
-    if c != 0 {
-      c
-    } else {
-      @mooncakes_index.compare_names(graph.names[a], graph.names[b])
-    }
-  })
+  let graph = load_index(parsed).graph
+  let m = graph.metrics()
+  let order = m.ranking(by)
   let rows = if limit <= 0 || limit > order.length() {
     order.length()
   } else {
@@ -281,7 +266,7 @@ fn top(args : ArrayView[String]) -> Int32 raise {
   out.write_string("module\tdirect\ttransitive\towners")
   for i in order[:rows] {
     out.write_string(
-      "\n\{graph.names[i]}\t\{m.direct[i]}\t\{m.transitive[i]}\t\{m.owners[i]}",
+      "\n\{graph.name(i)}\t\{m.get(i, Direct)}\t\{m.get(i, Transitive)}\t\{m.get(i, Owners)}",
     )
   }
   println(out.to_string())
@@ -289,7 +274,10 @@ fn top(args : ArrayView[String]) -> Int32 raise {
 }
 
 ///|
-fn tree_command(direction : Direction, args : ArrayView[String]) -> Int32 raise {
+fn tree_command(
+  direction : @graph.Direction,
+  args : ArrayView[String],
+) -> Int32 raise {
   let parsed = @args.parse(
     args,
     [
@@ -315,11 +303,11 @@ fn tree_command(direction : Direction, args : ArrayView[String]) -> Int32 raise 
     None => None
   }
   let index = load_index(parsed)
-  let graph = @graph.Graph::new(index.modules)
+  let graph = index.graph
   let roots = []
   let mut missing = false
   for name in parsed.operands {
-    match graph.ids.get(name) {
+    match graph.find(name) {
       Some(i) => roots.push(i)
       None => {
         eprintln("mooncakes-graph: \{name}: no such module")
@@ -330,7 +318,7 @@ fn tree_command(direction : Direction, args : ArrayView[String]) -> Int32 raise 
   if roots.is_empty() {
     return 1
   }
-  let forest = build_forest(graph, direction, roots, max_depth)
+  let forest = graph.forest(roots, direction, max_depth?)
   let noreport = parsed.contains("noreport")
   let as_of = index.fetched_at.map(format_time)
   if parsed.contains("J") {

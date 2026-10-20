@@ -21,7 +21,7 @@ fn sample_graph() -> @graph.Graph {
 ///|
 test "duplicates are expanded once and marked" {
   let g = sample_graph()
-  let forest = build_forest(g, Dependents, [g.ids["a/core"]], None)
+  let forest = g.forest([g.find("a/core").unwrap()], Dependents)
   assert_eq(forest.modules, 3)
   assert_eq(
     render_text(g, forest, Some(module_count(forest.modules))),
@@ -41,7 +41,7 @@ test "duplicates are expanded once and marked" {
 ///|
 test "-L stops descending and leaves later copies expandable" {
   let g = sample_graph()
-  let forest = build_forest(g, Dependents, [g.ids["a/core"]], Some(1))
+  let forest = g.forest([g.find("a/core").unwrap()], Dependents, max_depth=1)
   assert_eq(
     render_text(g, forest, None),
     (
@@ -57,7 +57,10 @@ test "-L stops descending and leaves later copies expandable" {
 ///|
 test "deps of several roots" {
   let g = sample_graph()
-  let forest = build_forest(g, Deps, [g.ids["c/tool"], g.ids["a/util"]], None)
+  let forest = g.forest(
+    [g.find("c/tool").unwrap(), g.find("a/util").unwrap()],
+    Deps,
+  )
   assert_eq(
     render_text(g, forest, Some(module_count(forest.modules))),
     (

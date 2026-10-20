@@ -1,5 +1,6 @@
 import {
   "gaato/mooncakes_index",
+  "moonbitlang/core/debug",
 }
 
 import {

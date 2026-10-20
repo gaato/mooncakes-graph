@@ -19,7 +19,8 @@ struct Scene {
   mut isolated : Array[Bool]
   /// Per node: left out of the layout and the metrics.
   mut hidden : Array[Bool]
-  mut metrics : @graph.Metrics
+  /// Over the modules the toggles leave visible; set with the graph.
+  mut metrics : @graph.Metrics?
   /// Drawn radius: `base_radius`, capped lower in a focus layout where a
   /// hub would otherwise cover the few modules around it.
   mut radius : Array[Double]
@@ -78,7 +79,7 @@ let scene : Scene = {
   focus_layout: false,
   isolated: [],
   hidden: [],
-  metrics: { direct: [], transitive: [], owners: [], },
+  metrics: None,
   radius: [],
   base_radius: [],
   color: [],
@@ -145,7 +146,8 @@ fn load_graph(text : String) -> Int32 {
   scene.placed = Array::make(n, false)
   scene.impact = Array::make(n, false)
   scene.upstream = Array::make(n, false)
-  scene.full_transitive = graph.metrics().transitive
+  let full = graph.metrics()
+  scene.full_transitive = Array::makei(n, i => full.get(i, Transitive))
   scene.near = Array::make(n, false)
   rebuild()
   skipped
@@ -157,20 +159,21 @@ fn load_graph(text : String) -> Int32 {
 fn rebuild() -> Unit {
   guard scene.graph is Some(graph) else { return }
   let n = graph.size()
-  let toggled = Array::makei(n, i => !scene.show_yanked && graph.yanked[i])
+  let toggled = Array::makei(n, i => !scene.show_yanked && graph.all_yanked(i))
   scene.isolated = Array::makei(n, i => {
-    !graph.deps[i].iter().any(j => !toggled[j]) &&
-    !graph.dependents[i].iter().any(j => !toggled[j])
+    graph.isolated(i, excluded=j => toggled[j])
   })
   scene.hidden = Array::makei(n, i => {
     toggled[i] || (!scene.show_isolated && scene.isolated[i])
   })
-  scene.metrics = graph.metrics(excluded=scene.hidden)
+  let hidden = scene.hidden
+  let metrics = graph.metrics(excluded=i => hidden[i])
+  scene.metrics = Some(metrics)
   scene.base_radius = Array::makei(n, i => {
     let t = if scene.hidden[i] {
       scene.full_transitive[i]
     } else {
-      scene.metrics.transitive[i]
+      metrics.get(i, Transitive)
     }
     let r = 2.5 + 1.6 * Double::from_int(t).sqrt()
     if r > 40.0 {
@@ -213,7 +216,7 @@ fn relayout() -> Unit {
   }
   let links = []
   for a in nodes {
-    for b in graph.deps[a] {
+    for b in graph.deps(a) {
       if index[b] != NO_NODE {
         links.push((index[a], index[b]))
       }
@@ -269,6 +272,12 @@ fn new_simulation(
 }
 
 ///|
+/// The metrics of the visible modules; only called once the graph is loaded.
+fn current_metrics() -> @graph.Metrics {
+  scene.metrics.unwrap()
+}
+
+///|
 fn save_positions() -> Unit {
   guard scene.sim is Some(sim) && !scene.focus_layout else { return }
   let xs = sim.xs()
@@ -283,7 +292,8 @@ fn save_positions() -> Unit {
 ///|
 fn assign_colors(graph : @graph.Graph) -> Unit {
   let counts : Map[String, Int32] = Map([])
-  for i, owner in graph.owners {
+  for i in 0..<graph.size() {
+    let owner = graph.owner(i)
     if !scene.hidden[i] {
       counts[owner] = counts.get(owner).unwrap_or(0) + 1
     }
@@ -304,7 +314,9 @@ fn assign_colors(graph : @graph.Graph) -> Unit {
     }
     color_of[entry.0] = palette[k]
   }
-  scene.color = graph.owners.map(o => color_of.get(o).unwrap_or(other_color))
+  scene.color = Array::makei(graph.size(), i => {
+    color_of.get(graph.owner(i)).unwrap_or(other_color)
+  })
 }
 
 ///|
@@ -395,11 +407,12 @@ fn select_node(i : Int32) -> Unit {
     return
   }
   scene.impact[i] = true
-  for d in graph.transitive_dependents(i, excluded=scene.hidden) {
+  let hidden = scene.hidden
+  for d in graph.reachable(i, Dependents, excluded=j => hidden[j]) {
     scene.impact[d] = true
     scene.impact_count += 1
   }
-  for d in graph.transitive_deps(i) {
+  for d in graph.reachable(i, Deps) {
     scene.upstream[d] = true
   }
 }
@@ -442,10 +455,10 @@ fn set_hovered(i : Int32) -> Unit {
     return
   }
   scene.near[i] = true
-  for j in graph.deps[i] {
+  for j in graph.deps(i) {
     scene.near[j] = true
   }
-  for j in graph.dependents[i] {
+  for j in graph.dependents(i) {
     scene.near[j] = true
   }
 }

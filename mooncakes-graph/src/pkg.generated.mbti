@@ -3,41 +3,88 @@ package "gaato/mooncakes-graph"
 
 import {
   "gaato/mooncakes_index",
+  "moonbitlang/core/debug",
 }
 
 // Values
-pub let absent_owners : Array[String]
 
 // Errors
 
 // Types and methods
-pub struct Graph {
-  names : Array[String]
-  ids : Map[String, Int]
-  owners : Array[String]
-  current : Array[@mooncakes_index.VersionRecord]
-  history : Array[Array[@mooncakes_index.VersionRecord]]
-  yanked : Array[Bool]
-  deps : Array[Array[Int]]
-  dependents : Array[Array[Int]]
-  dangling : Int
-}
-pub fn Graph::asked(Self, Int, Int) -> String?
-pub fn Graph::behind(Self, Int, Int) -> Bool
-pub fn Graph::edge_count(Self) -> Int
-pub fn Graph::from_records(ArrayView[@mooncakes_index.VersionRecord]) -> Self
-pub fn Graph::mask(Self, ArrayView[String]) -> Array[Bool]
-pub fn Graph::metrics(Self, excluded? : Array[Bool]) -> Metrics
-pub fn Graph::new(ArrayView[@mooncakes_index.Module]) -> Self
-pub fn Graph::size(Self) -> Int
-pub fn Graph::transitive_dependents(Self, Int, excluded? : Array[Bool]) -> Array[Int]
-pub fn Graph::transitive_deps(Self, Int, excluded? : Array[Bool]) -> Array[Int]
-pub fn Graph::version_yanked(Self, Int, String) -> Bool
+pub(all) enum Direction {
+  Dependents
+  Deps
+} derive(Eq, @debug.Debug)
+pub fn Direction::equal(Self, Self) -> Bool
+pub fn Direction::not_equal(Self, Self) -> Bool
+pub fn Direction::to_repr(Self) -> @debug.Repr
 
-pub(all) struct Metrics {
-  direct : Array[Int]
-  transitive : Array[Int]
-  owners : Array[Int]
+pub struct Forest {
+  roots : ArrayView[TreeNode]
+  modules : Int
+}
+
+type Graph
+pub fn Graph::all_yanked(Self, Int) -> Bool
+pub fn Graph::current(Self, Int) -> @mooncakes_index.VersionRecord
+pub fn Graph::dependents(Self, Int) -> ArrayView[Int]
+pub fn Graph::deps(Self, Int) -> ArrayView[Int]
+pub fn Graph::find(Self, StringView) -> Int?
+pub fn Graph::forest(Self, ArrayView[Int], Direction, max_depth? : Int) -> Forest
+pub fn Graph::from_records(ArrayView[@mooncakes_index.VersionRecord]) -> Self
+pub fn Graph::history(Self, Int) -> ArrayView[@mooncakes_index.VersionRecord]
+pub fn Graph::isolated(Self, Int, excluded? : (Int) -> Bool) -> Bool
+pub fn Graph::metrics(Self, excluded? : (Int) -> Bool) -> Metrics
+pub fn Graph::name(Self, Int) -> String
+pub fn Graph::new(ArrayView[@mooncakes_index.Module]) -> Self
+pub fn Graph::owner(Self, Int) -> String
+pub fn Graph::reachable(Self, Int, Direction, excluded? : (Int) -> Bool) -> Array[Int]
+pub fn Graph::requirement(Self, dependent~ : Int, dependency~ : Int) -> Requirement?
+pub fn Graph::requirements(Self, Int) -> Array[Requirement]
+pub fn Graph::size(Self) -> Int
+pub fn Graph::stats(Self) -> Stats
+
+pub(all) enum Metric {
+  Direct
+  Transitive
+  Owners
+} derive(Eq, @debug.Debug)
+pub fn Metric::equal(Self, Self) -> Bool
+pub fn Metric::not_equal(Self, Self) -> Bool
+pub fn Metric::to_repr(Self) -> @debug.Repr
+
+type Metrics
+pub fn Metrics::get(Self, Int, Metric) -> Int
+pub fn Metrics::ranking(Self, Metric, among? : ArrayView[Int]) -> Array[Int]
+
+pub struct Requirement {
+  name : String
+  node : Int?
+  asked : String?
+  behind : Bool
+  yanked : Bool
+} derive(Eq, @debug.Debug)
+pub fn Requirement::equal(Self, Self) -> Bool
+pub fn Requirement::not_equal(Self, Self) -> Bool
+pub fn Requirement::to_repr(Self) -> @debug.Repr
+
+pub struct Stats {
+  modules : Int
+  versions : Int
+  modules_with_deps : Int
+  edges : Int
+  dangling_edges : Int
+  all_yanked : Int
+} derive(Eq, @debug.Debug)
+pub fn Stats::equal(Self, Self) -> Bool
+pub fn Stats::not_equal(Self, Self) -> Bool
+pub fn Stats::to_repr(Self) -> @debug.Repr
+
+pub struct TreeNode {
+  node : Int
+  children : ArrayView[TreeNode]
+  duplicate : Bool
+  truncated : Bool
 }
 
 // Type aliases
