@@ -1,5 +1,6 @@
 members = [
-  "app",
   "mooncakes_index",
   "force",
+  "mooncakes-graph",
+  "site",
 ]

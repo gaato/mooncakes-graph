@@ -20,17 +20,17 @@ fi
 # now and breaking to fix after publishing.
 run moon check --deny-warn --target native
 run moon check --deny-warn --target js
-libs=(force/src force/src/internal/quadtree mooncakes_index/src)
+libs=(force/src force/src/internal/quadtree mooncakes_index/src mooncakes-graph/src)
 run moon check --deny-warn --target wasm-gc "${libs[@]}"
 run moon test --target native
 run moon test --target js
-run moon test --target wasm-gc -p gaato/force -p gaato/force/internal/quadtree -p gaato/mooncakes_index
+run moon test --target wasm-gc -p gaato/force -p gaato/force/internal/quadtree -p gaato/mooncakes_index -p gaato/mooncakes-graph
 run scripts/release.sh check
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-moon build --target native --release app/cmd/mooncakes-graph >/dev/null
+moon build --target native --release mooncakes-graph/src/cmd/mooncakes-graph >/dev/null
 cli=_build/native/release/build/gaato/mooncakes-graph/cmd/mooncakes-graph/mooncakes-graph.exe
 
 fail=0

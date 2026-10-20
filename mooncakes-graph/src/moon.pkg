@@ -1,0 +1,7 @@
+import {
+  "gaato/mooncakes_index",
+}
+
+import {
+  "gaato/mooncakes-graph" @graph,
+} for "test"

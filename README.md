@@ -20,7 +20,7 @@ authors' own.
 
 ```sh
 moon update
-moon run --target native app/cmd/mooncakes-graph -- dependents OWNER/MODULE
+moon run --target native mooncakes-graph/src/cmd/mooncakes-graph -- dependents OWNER/MODULE
 ```
 
 ```
@@ -44,7 +44,7 @@ The trees take tree's `-L`, `--noreport` and `-J`. `--help` lists the rest.
 
 ```sh
 moon update
-./scripts/build-site.sh # into app/dist
+./scripts/build-site.sh # into site/dist
 ./scripts/gates.sh      # checks the CLI against an independent reader and tree(1)
 ```
 

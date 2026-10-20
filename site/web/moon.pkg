@@ -1,7 +1,7 @@
 import {
   "gaato/force",
   "gaato/mooncakes_index",
-  "gaato/mooncakes-graph/graph",
+  "gaato/mooncakes-graph" @graph,
   "moonbit-community/rabbita",
   "moonbit-community/rabbita/dom",
   "moonbit-community/rabbita/html",

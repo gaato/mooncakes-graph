@@ -1,6 +1,6 @@
 _build/
 .mooncakes/
 dist/
-app/public/data/
-app/public/llms.txt
+site/public/data/
+site/public/llms.txt
 __pycache__/

@@ -17,8 +17,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Bottom-up: a module is listed after everything it imports. The app module is
-# `private = true` and never published.
+# Bottom-up: a module is listed after everything it imports. The site module
+# is `private = true` and never published.
 PUBLISH_MODULES=(mooncakes_index force)
 
 module_name() { sed -nE 's/^name = "(.*)"$/\1/p' "$1/moon.mod"; }

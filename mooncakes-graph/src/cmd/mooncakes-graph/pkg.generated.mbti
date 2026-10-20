@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "gaato/mooncakes-graph/cmd/mooncakes-graph"
+
+// Values
+
+// Errors
+type Fatal
+
+// Types and methods
+type Direction
+
+type Forest
+
+type Loaded
+
+type TreeNode
+
+// Type aliases
+
+// Traits
