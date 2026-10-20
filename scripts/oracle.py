@@ -5,6 +5,7 @@ Used for the M1 number gates and, until `mooncakes-graph versions` exists,
 as the data source for the web spike.
 
   oracle.py versions        # natural JSONL, one line per version
+  oracle.py modules         # current version's description etc., per module
   oracle.py stats           # gate numbers as JSON
   oracle.py top KEY         # every module ranked by KEY, TSV like `top -n 0`
 """
@@ -55,6 +56,24 @@ def natural(d):
     }
     if d.get("deprecated"):
         out["deprecated"] = d["deprecated"]
+    return out
+
+
+def text(v):
+    # Blank means absent; the CLI trims tab, newline, CR and space only.
+    return v if isinstance(v, str) and v.strip("\t\n\r ") else None
+
+
+def about(d):
+    out = {"name": d["name"], "version": d["version"]}
+    for key in ("description", "repository", "license"):
+        if text(d.get(key)):
+            out[key] = d[key]
+    kw = [k for k in d.get("keywords") or [] if text(k)] if isinstance(d.get("keywords"), list) else []
+    if kw:
+        out["keywords"] = kw
+    if text(d.get("yanked_reason")):
+        out["yanked_reason"] = d["yanked_reason"]
     return out
 
 
@@ -121,8 +140,14 @@ def metrics(rows):
 
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "stats"
-    rows = [natural(d) for d in records()]
-    if cmd == "versions":
+    raw = list(records())
+    rows = [natural(d) for d in raw]
+    if cmd == "modules":
+        _, cur = current([{**d, "yanked": bool(d.get("yanked"))} for d in raw])
+        for name in sorted(cur, key=str.encode):
+            line = json.dumps(about(cur[name]), ensure_ascii=False, separators=(",", ":"))
+            sys.stdout.write(line + "\n")
+    elif cmd == "versions":
         for r in rows:
             sys.stdout.write(json.dumps(r, ensure_ascii=False, separators=(",", ":")) + "\n")
     elif cmd == "stats":

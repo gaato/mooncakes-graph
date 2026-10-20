@@ -11,6 +11,8 @@ const USAGE : String =
   #|                --noreport  omit the module count
   #|                -J          tree's JSON layout
   #|  versions    every published version as JSONL, one per line
+  #|  modules     every module's description, repository, license and
+  #|              keywords from its current version, as JSONL
   #|  top         modules ranked by how much they are depended on, as TSV
   #|                -n N        rows to print (default 20, 0 for all)
   #|                --by KEY    direct | transitive | owners (default transitive)
@@ -66,6 +68,7 @@ fn run(args : ArrayView[String]) -> Int32 raise {
     "dependents" => tree_command(Dependents, rest)
     "deps" => tree_command(Deps, rest)
     "versions" => versions(rest)
+    "modules" => modules(rest)
     "top" => top(rest)
     "-h" | "--help" | "help" => {
       println(USAGE)
@@ -122,10 +125,48 @@ fn versions(args : ArrayView[String]) -> Int32 raise {
         out.write_char('\n')
       }
       first = false
+      // The graph fields only; `modules` carries the rest once per module.
+      let record = { ..record, about: @mooncakes_index.About::default(), }
       out.write_string(record.to_json().stringify())
     }
   }
   if !first {
+    println(out.to_string())
+  }
+  0
+}
+
+///|
+/// One line per module: its name and current version, then the `About`
+/// fields of that version that are present.
+fn modules(args : ArrayView[String]) -> Int32 raise {
+  let parsed = @args.parse(args, common_options)
+  if parsed.operands.length() > 0 {
+    raise @args.CliError(
+      kind=UnexpectedOptionValue,
+      option="",
+      message="modules takes no operands",
+    )
+  }
+  let index = load_index(parsed)
+  let out = StringBuilder()
+  for i, module_ in index.modules {
+    guard @mooncakes_index.current(module_.1) is Some(record) else { continue }
+    let obj : Map[String, Json] = Map([
+      ("name", Json::string(record.name)),
+      ("version", Json::string(record.version)),
+    ])
+    if record.about.to_json() is Object(about) {
+      for key, value in about {
+        obj[key] = value
+      }
+    }
+    if i > 0 {
+      out.write_char('\n')
+    }
+    out.write_string(Json::object(obj).stringify())
+  }
+  if index.modules.length() > 0 {
     println(out.to_string())
   }
   0

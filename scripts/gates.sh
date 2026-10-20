@@ -19,6 +19,10 @@ check() {
 python3 -I scripts/oracle.py versions >"$tmp/oracle.jsonl"
 name="versions matches oracle byte for byte"; check cmp -s "$tmp/cli.jsonl" "$tmp/oracle.jsonl"
 
+"$cli" modules >"$tmp/cli_modules.jsonl"
+python3 -I scripts/oracle.py modules >"$tmp/oracle_modules.jsonl"
+name="modules matches oracle byte for byte"; check cmp -s "$tmp/cli_modules.jsonl" "$tmp/oracle_modules.jsonl"
+
 for key in direct transitive owners; do
   "$cli" top -n 0 --by "$key" >"$tmp/cli.tsv"
   python3 -I scripts/oracle.py top "$key" >"$tmp/oracle.tsv"

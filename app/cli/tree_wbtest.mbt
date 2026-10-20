@@ -11,6 +11,7 @@ fn sample_graph() -> @graph.Graph {
       created_at: None,
       yanked: false,
       deprecated: None,
+      about: @mooncakes_index.About::default(),
     }
   }
   @graph.Graph::from_records([

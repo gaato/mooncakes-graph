@@ -11,6 +11,7 @@ test "parse an index line" {
   assert_eq(r.created_at, Some("2026-02-11T07:20:01.468299+00:00"))
   assert_eq(r.yanked, false)
   assert_eq(r.deprecated, None)
+  assert_eq(r.about.license, Some("Apache-2.0"))
 }
 
 ///|
@@ -69,17 +70,30 @@ test "natural JSONL round-trips" {
     created_at: Some("2026-01-01T00:00:00+00:00"),
     yanked: true,
     deprecated: Some("use g/h"),
+    about: {
+      description: Some("A thing"),
+      repository: Some("https://example.com/a/b"),
+      license: Some("MIT"),
+      keywords: ["x", "y"],
+      yanked_reason: Some("broken"),
+    },
   }
   let line = r.to_json().stringify()
   assert_eq(
     line,
     (
-      #|{"name":"a/b","version":"1.2.3","created_at":"2026-01-01T00:00:00+00:00","deps":{"c/d":"0.1.0","e/f":null},"yanked":true,"deprecated":"use g/h"}
+      #|{"name":"a/b","version":"1.2.3","created_at":"2026-01-01T00:00:00+00:00","deps":{"c/d":"0.1.0","e/f":null},"yanked":true,"deprecated":"use g/h","description":"A thing","repository":"https://example.com/a/b","license":"MIT","keywords":["x","y"],"yanked_reason":"broken"}
     ),
   )
   assert_eq(@mooncakes_index.parse_line(line), r)
-  // `deprecated` is omitted when absent; `created_at` is null.
-  let plain = { ..r, created_at: None, deprecated: None, deps: [], }
+  // `deprecated` and empty `About` fields are omitted; `created_at` is null.
+  let plain = {
+    ..r,
+    created_at: None,
+    deprecated: None,
+    deps: [],
+    about: @mooncakes_index.About::default(),
+  }
   assert_eq(
     plain.to_json().stringify(),
     (
@@ -107,6 +121,7 @@ fn v(version : String, yanked : Bool) -> @mooncakes_index.VersionRecord {
     created_at: None,
     yanked,
     deprecated: None,
+    about: @mooncakes_index.About::default(),
   }
 }
 
@@ -144,4 +159,41 @@ test "compare_names is byte order" {
   assert_eq(names, [
     "B/c", "a-b/c", "a/b", "moonbit-community/rabbita", "moonbitlang/x",
   ])
+}
+
+///|
+test "about fields: blanks read as absent, non-strings are skipped" {
+  let r = @mooncakes_index.parse_line(
+    (
+      #|{"name":"a/b","version":"1.0.0","description":"  ","repository":"","license":null,"keywords":["k","",3],"yanked_reason":null}
+    ),
+  )
+  assert_eq(r.about, { ..@mooncakes_index.About::default(), keywords: ["k"], })
+}
+
+///|
+test "compare_versions" {
+  let ordered = [
+    "0.9.0", "0.10.0-alpha", "0.10.0-alpha.1", "0.10.0-alpha.beta", "0.10.0-beta.2",
+    "0.10.0-beta.11", "0.10.0", "0.10.1", "1.0.0",
+  ]
+  for i in 0..<(ordered.length() - 1) {
+    assert_true(
+      @mooncakes_index.compare_versions(ordered[i], ordered[i + 1]) < 0,
+      msg="\{ordered[i]} < \{ordered[i + 1]}",
+    )
+    assert_true(
+      @mooncakes_index.compare_versions(ordered[i + 1], ordered[i]) > 0,
+    )
+  }
+  assert_eq(@mooncakes_index.compare_versions("1.2.3+build", "1.2.3"), 0)
+  assert_true(@mooncakes_index.compare_versions("latest", "0.1.0") > 0)
+}
+
+///|
+test "release_line" {
+  assert_eq(@mooncakes_index.release_line("0.22.5"), Some("0.22"))
+  assert_eq(@mooncakes_index.release_line("0.22.0-rc.1"), Some("0.22"))
+  assert_eq(@mooncakes_index.release_line("2.3.1"), Some("2"))
+  assert_eq(@mooncakes_index.release_line("^0.1.0"), None)
 }

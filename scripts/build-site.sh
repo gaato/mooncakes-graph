@@ -6,5 +6,8 @@ cd "$(dirname "$0")/.."
 
 moon build --target native --release app/cli >/dev/null
 mkdir -p app/public/data
-_build/native/release/build/gaato/mooncakes-graph/cli/cli.exe versions >app/public/data/versions.jsonl
+cli=_build/native/release/build/gaato/mooncakes-graph/cli/cli.exe
+"$cli" versions >app/public/data/versions.jsonl
+# Read only when a module is first opened.
+"$cli" modules >app/public/data/modules.jsonl
 warren -C app build --browser-entry web
