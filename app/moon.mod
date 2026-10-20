@@ -2,6 +2,10 @@ name = "gaato/mooncakes-graph"
 
 version = "0.1.0"
 
+// The site and the CLI; only force and mooncakes_index are published.
+
+private = true
+
 import {
   "moonbit-community/rabbita@0.16.5",
   "moonbit-community/rui@0.3.6",

@@ -28,6 +28,17 @@ jobs:
           moon info
           git diff --exit-code -- '*.mbti'
 
+      # Warnings fail the build: reserved words (warning 35) and deprecations
+      # are cheap to fix now and breaking to fix after publishing.
+      - name: Check with warnings denied
+        run: |
+          moon check --deny-warn --target native
+          moon check --deny-warn --target js
+          moon check --deny-warn --target wasm-gc force/src force/src/internal/quadtree mooncakes_index/src
+
+      - name: Check the changelogs
+        run: ./scripts/release.sh check
+
       - name: Test
         run: |
           moon test --target native
