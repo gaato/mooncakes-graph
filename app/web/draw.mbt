@@ -20,6 +20,13 @@ extern "js" fn set_dash(
 extern "js" fn now_ms() -> Double = "() => performance.now()"
 
 ///|
+extern "js" fn text_width(
+  ctx : @dom.CanvasRenderingContext2D,
+  text : String,
+) -> Double =
+  #|(c, t) => c.measureText(t).width
+
+///|
 /// A line through `text` drawn at (x, y) with the current font, as
 /// mooncakes.io marks yanked modules in its search results.
 extern "js" fn strike_text(
@@ -235,17 +242,38 @@ fn draw() -> Unit {
   ctx.set_fill_style(style(if dark { "#e5e7eb" } else { "#111827" }))
   let strike = if dark { "#6b7280" } else { "#9ca3af" }
   let few_impacted = selecting && scene.impact_count <= 30
-  let label_all = scene.focus_layout && scene.sim_nodes.length() <= 80
+  // Candidates, most important first: the selection, the hovered module,
+  // then bigger nodes. A label that would overlap one already drawn is
+  // skipped, so a crowded view shows fewer names instead of a smear, and
+  // zooming in brings the rest back.
+  let candidates = []
   for k, i in scene.sim_nodes {
     let screen_r = scene.radius[i] * scene.scale
-    let wanted = label_all ||
+    let wanted = scene.focus_layout ||
       i == hovered ||
       i == scene.selected ||
       (few_impacted && scene.impact[i]) ||
       (screen_r >= 10.0 && (!selecting || scene.impact[i]))
-    if !wanted {
-      continue
+    if wanted {
+      candidates.push(k)
     }
+  }
+  let rank = fn(k : Int32) {
+    let i = scene.sim_nodes[k]
+    if i == scene.selected {
+      2.0e9
+    } else if i == hovered {
+      1.0e9
+    } else {
+      scene.radius[i]
+    }
+  }
+  candidates.sort_by((a, b) => rank(b).compare(rank(a)))
+  let taken : Array[(Double, Double, Double, Double)] = []
+  let line = 15.0 * dpr
+  for k in candidates {
+    let i = scene.sim_nodes[k]
+    let screen_r = scene.radius[i] * scene.scale
     let sx = (xs[k] * scene.scale + scene.cam_x) * dpr
     let sy = (ys[k] * scene.scale + scene.cam_y) * dpr
     if sx < -200.0 || sy < -20.0 || sx > w * dpr + 20.0 || sy > h * dpr + 20.0 {
@@ -253,6 +281,15 @@ fn draw() -> Unit {
     }
     let lx = sx + (screen_r + 3.0) * dpr
     let ly = sy + 4.0 * dpr
+    let x1 = lx + text_width(ctx, graph.names[i])
+    let y0 = ly - line + 3.0 * dpr
+    let overlaps = taken
+      .iter()
+      .any(r => lx < r.2 && x1 > r.0 && y0 < r.3 && y0 + line > r.1)
+    if overlaps {
+      continue
+    }
+    taken.push((lx, y0, x1, y0 + line))
     ctx.fill_text(graph.names[i], lx, ly)
     if graph.yanked[i] {
       strike_text(ctx, graph.names[i], lx, ly, 1.5 * dpr, strike)

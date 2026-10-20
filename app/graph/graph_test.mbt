@@ -121,3 +121,34 @@ test "version_yanked" {
   assert_true(!g.version_yanked(lib, "0.1.0"))
   assert_true(!g.version_yanked(lib, "9.9.9"))
 }
+
+///|
+test "layers put dependencies above and dependents below" {
+  // a/core <- a/util <- b/app <- c/tool, and c/tool -> a/util directly.
+  let g = sample()
+  let id = fn(n : String) { g.ids[n] }
+  let util = id("a/util")
+  let down = g.mask(["a/util", "b/app", "c/tool"])
+  let up = g.mask(["a/core"])
+  let layers = g.layers(util, up, down)
+  assert_eq(layers[id("a/core")], -1)
+  assert_eq(layers[util], 0)
+  assert_eq(layers[id("b/app")], 1)
+  // Longest path: c/tool sits below b/app, not beside it.
+  assert_eq(layers[id("c/tool")], 2)
+  assert_eq(layers[id("b/lib")], 0)
+}
+
+///|
+test "layers survive a dependency cycle" {
+  let g = @graph.Graph::from_records([
+    rec("a/x", "0.1.0", ["a/y"]),
+    rec("a/y", "0.1.0", ["a/x"]),
+    rec("a/z", "0.1.0", ["a/x"]),
+  ])
+  let x = g.ids["a/x"]
+  let all = g.mask(["a/x", "a/y", "a/z"])
+  let layers = g.layers(x, all, all)
+  assert_eq(layers[x], 0)
+  assert_true(layers[g.ids["a/z"]] > 0)
+}

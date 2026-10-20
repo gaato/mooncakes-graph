@@ -261,3 +261,64 @@ pub fn Graph::metrics(self : Graph, excluded? : Array[Bool]) -> Metrics {
   }
   { direct, transitive, owners, }
 }
+
+///|
+/// Layers for drawing `root` with what it depends on above it and what
+/// depends on it below: `root` is 0, a module in `upstream` is minus the
+/// longest dependency path from `root` down to it, and one in `downstream`
+/// is the longest path up from it to `root`. So every edge between two
+/// layered modules points up, from a module to something above it.
+///
+/// Modules in neither set get 0. A dependency cycle cannot be layered this
+/// way; its modules stop growing after as many rounds as there are modules.
+pub fn Graph::layers(
+  self : Graph,
+  root : Int32,
+  upstream : Array[Bool],
+  downstream : Array[Bool],
+) -> Array[Int32] {
+  let n = self.size()
+  let down = longest_paths(n, root, downstream, i => self.dependents[i])
+  let up = longest_paths(n, root, upstream, i => self.deps[i])
+  Array::makei(n, i => {
+    if i == root {
+      0
+    } else if downstream[i] && down[i] > 0 {
+      down[i]
+    } else if upstream[i] && up[i] > 0 {
+      -up[i]
+    } else {
+      0
+    }
+  })
+}
+
+///|
+/// Longest path length from `root` to each node of `allowed` along `next`,
+/// by relaxing until nothing changes (at most `n` rounds); 0 when
+/// unreachable.
+fn longest_paths(
+  n : Int32,
+  root : Int32,
+  allowed : Array[Bool],
+  next : (Int32) -> Array[Int32],
+) -> Array[Int32] {
+  let depth = Array::make(n, -1)
+  depth[root] = 0
+  let mut frontier = [root]
+  let mut rounds = 0
+  while !frontier.is_empty() && rounds < n {
+    let changed : Map[Int32, Bool] = Map([])
+    for u in frontier {
+      for v in next(u) {
+        if v != root && allowed[v] && depth[v] < depth[u] + 1 {
+          depth[v] = depth[u] + 1
+          changed[v] = true
+        }
+      }
+    }
+    frontier = changed.keys().collect()
+    rounds += 1
+  }
+  depth.map(d => if d < 0 { 0 } else { d })
+}

@@ -35,6 +35,10 @@ struct Scene {
   /// Simulation index -> node, and node -> simulation index (or NO_NODE).
   mut sim_nodes : Array[Int32]
   mut sim_index : Array[Int32]
+  /// In a layered focus layout, where each simulation node is heading; the
+  /// forces are off and `step` eases nodes there instead. Empty otherwise.
+  mut target_x : Array[Double]
+  mut target_y : Array[Double]
   mut cam_x : Double
   mut cam_y : Double
   mut scale : Double
@@ -92,6 +96,8 @@ let scene : Scene = {
   sim: None,
   sim_nodes: [],
   sim_index: [],
+  target_x: [],
+  target_y: [],
   cam_x: 0.0,
   cam_y: 0.0,
   scale: 1.0,
@@ -128,6 +134,21 @@ let palette : Array[String] = [
 
 ///|
 let other_color : String = "#9ca3af"
+
+///|
+/// Focus layouts up to this many modules are layered: what the selection
+/// depends on to its left, what depends on it to its right, one column per
+/// layer so each label gets a row of its own. Bigger ones (the hubs') would
+/// put hundreds of modules in one column, so they stay free.
+const LAYERED_MAX : Int32 = 150
+
+///|
+/// Least distance between layer columns, in layout units.
+const LAYER_GAP : Double = 120.0
+
+///|
+/// Distance between rows within a layer column.
+const ROW_GAP : Double = 30.0
 
 ///|
 fn load_graph(text : String) -> Int32 {
@@ -235,16 +256,28 @@ fn relayout() -> Unit {
       resumed = true
     }
   }
-  sim.add_force(@force.link(links, distance=30.0))
-  sim.add_force(
-    @force.many_body(
-      strengths=nodes.map(i => -20.0 - 4.0 * scene.radius[i]),
-      distance_max=600.0,
-    ),
-  )
-  sim.add_force(@force.collide(nodes.map(i => scene.radius[i] + 1.5)))
-  sim.add_force(@force.x(strength=0.03))
-  sim.add_force(@force.y(strength=0.03))
+  let layered = focus && nodes.length() <= LAYERED_MAX
+  if layered {
+    // Columns by layer, rows ordered to cross fewer edges; `step` glides
+    // each module from where it was to its place.
+    let layers = graph.layers(scene.selected, scene.upstream, scene.impact)
+    let (tx, ty) = layered_targets(graph, nodes, index, layers)
+    scene.target_x = tx
+    scene.target_y = ty
+  } else {
+    scene.target_x = []
+    scene.target_y = []
+    sim.add_force(@force.link(links, distance=30.0))
+    sim.add_force(
+      @force.many_body(
+        strengths=nodes.map(i => -20.0 - 4.0 * scene.radius[i]),
+        distance_max=600.0,
+      ),
+    )
+    sim.add_force(@force.collide(nodes.map(i => scene.radius[i] + 1.5)))
+    sim.add_force(@force.x(strength=0.03))
+    sim.add_force(@force.y(strength=0.03))
+  }
   if resumed && !focus {
     sim.set_alpha(0.5)
   }
@@ -257,6 +290,89 @@ fn relayout() -> Unit {
     scene.follow = NO_NODE
     scene.auto_fit = true
   }
+}
+
+///|
+/// Where each laid-out module goes in a layered focus layout: x by layer, and
+/// within a column, rows a label apart, ordered by a few barycentre sweeps
+/// (each module moves toward the mean row of its neighbours in the columns
+/// already swept) so that fewer edges cross.
+fn layered_targets(
+  graph : @graph.Graph,
+  nodes : Array[Int32],
+  index : Array[Int32],
+  layers : Array[Int32],
+) -> (Array[Double], Array[Double]) {
+  let lo = nodes.fold(init=0, (m, i) => m.min(layers[i]))
+  let hi = nodes.fold(init=0, (m, i) => m.max(layers[i]))
+  let columns : Array[Array[Int32]] = Array::makei(hi - lo + 1, _ => [])
+  for k, i in nodes {
+    columns[layers[i] - lo].push(k)
+  }
+  // Start in name order, so the result does not depend on node ids.
+  for col in columns {
+    col.sort_by((a, b) => {
+      @mooncakes_index.compare_names(
+        graph.names[nodes[a]],
+        graph.names[nodes[b]],
+      )
+    })
+  }
+  let row = Array::make(nodes.length(), 0.0)
+  let place = fn(col : Array[Int32]) {
+    for r, k in col {
+      row[k] = Double::from_int(r) - Double::from_int(col.length() - 1) / 2.0
+    }
+  }
+  for col in columns {
+    place(col)
+  }
+  let neighbours = fn(k : Int32) {
+    let i = nodes[k]
+    graph.deps[i]
+    .iter()
+    .concat(graph.dependents[i].iter())
+    .filter_map(j => if index[j] != NO_NODE { Some(index[j]) } else { None })
+    .collect()
+  }
+  let adjacency = Array::makei(nodes.length(), neighbours)
+  let sweep = fn(c : Int32, before : (Int32) -> Bool) {
+    let col = columns[c]
+    let key = Array::make(nodes.length(), 0.0)
+    for k in col {
+      let near = adjacency[k].filter(j => before(layers[nodes[j]] - lo))
+      key[k] = if near.is_empty() {
+        row[k]
+      } else {
+        near.fold(init=0.0, (s, j) => s + row[j]) /
+        Double::from_int(near.length())
+      }
+    }
+    col.sort_by((a, b) => key[a].compare(key[b]))
+    place(col)
+  }
+  for _ in 0..<4 {
+    for c in 1..<columns.length() {
+      sweep(c, d => d < c)
+    }
+    for c = columns.length() - 2; c >= 0; c = c - 1 {
+      sweep(c, d => d > c)
+    }
+  }
+  // Each column is as far from the next as its longest label needs (about
+  // 7 units a character at 12px), and the selection's column stays at 0.
+  let col_x = Array::make(columns.length(), 0.0)
+  for c in 1..<columns.length() {
+    let longest = columns[c - 1].fold(init=0, (m, k) => {
+      m.max(graph.names[nodes[k]].length())
+    })
+    col_x[c] = col_x[c - 1] +
+      LAYER_GAP.max(Double::from_int(longest) * 7.0 + 40.0)
+  }
+  let origin = col_x[-lo]
+  let tx = nodes.map(i => col_x[layers[i] - lo] - origin)
+  let ty = row.map(r => r * ROW_GAP)
+  (tx, ty)
 }
 
 ///|
@@ -301,7 +417,18 @@ fn assign_colors(graph : @graph.Graph) -> Unit {
 ///|
 fn step() -> Unit {
   guard scene.sim is Some(sim) else { return }
-  if sim.alpha >= sim.alpha_min {
+  if !scene.target_x.is_empty() {
+    // Forces cool off before far-away nodes arrive; ease them in instead.
+    let xs = sim.xs()
+    let ys = sim.ys()
+    for k in 0..<scene.target_x.length() {
+      sim.set_position(
+        k,
+        xs[k] + (scene.target_x[k] - xs[k]) * 0.12,
+        ys[k] + (scene.target_y[k] - ys[k]) * 0.12,
+      )
+    }
+  } else if sim.alpha >= sim.alpha_min {
     sim.tick()
   }
   if scene.follow != NO_NODE {
@@ -330,11 +457,15 @@ fn fit_view(ease : Double) -> Unit {
     y1 = y1.max(ys[k] + r)
   }
   let pad = 24.0
-  let s = ((scene.width - 2.0 * pad) / (x1 - x0)).min(
+  // A focus layout labels every module, to the right of its node: leave the
+  // rightmost labels room.
+  let label_room = if scene.focus_layout { 150.0 } else { 0.0 }
+  let s = ((scene.width - 2.0 * pad - label_room) / (x1 - x0)).min(
     (scene.height - 2.0 * pad) / (y1 - y0),
   )
   let target_scale = s.min(4.0)
-  let target_x = scene.width / 2.0 - (x0 + x1) / 2.0 * target_scale
+  let target_x = (scene.width - label_room) / 2.0 -
+    (x0 + x1) / 2.0 * target_scale
   let target_y = scene.height / 2.0 - (y0 + y1) / 2.0 * target_scale
   scene.scale += (target_scale - scene.scale) * ease
   scene.cam_x += (target_x - scene.cam_x) * ease
