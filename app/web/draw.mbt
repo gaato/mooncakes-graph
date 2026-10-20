@@ -87,14 +87,16 @@ fn draw() -> Unit {
   let upstream_color = if dark { "#60a5fa" } else { "#2563eb" }
 
   // Edges: one faint batch, then the highlighted ones on top. Edges that
-  // matter (a focus layout, a highlight) flow from a module toward what it
-  // depends on; with reduced motion they get arrowheads instead.
+  // matter (a focus layout, a highlight) flow the way a change spreads, from
+  // a module toward what depends on it; with reduced motion they get
+  // arrowheads instead.
   let animate = !prefers_reduced_motion()
   let flowing = fn(on : Bool) {
     if on && animate {
       let unit = 1.0 / scene.scale
-      // 40 CSS px per second along the edge.
-      set_dash(ctx, 6.0 * unit, 5.0 * unit, -now_ms() * 0.04 * unit)
+      // 40 CSS px per second along the edge, back toward its start: edges
+      // run from a module to its dependency, so this reaches the dependent.
+      set_dash(ctx, 6.0 * unit, 5.0 * unit, now_ms() * 0.04 * unit)
     } else {
       set_dash(ctx, 0.0, 0.0, 0.0)
     }
@@ -168,11 +170,11 @@ fn draw() -> Unit {
         if index[b] != NO_NODE && kind(a, b) == want {
           arrow_head(
             ctx,
-            xs[index[a]],
-            ys[index[a]],
             xs[index[b]],
             ys[index[b]],
-            scene.radius[b],
+            xs[index[a]],
+            ys[index[a]],
+            scene.radius[a],
             arrow,
           )
         }
