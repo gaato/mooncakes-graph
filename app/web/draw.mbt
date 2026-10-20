@@ -246,10 +246,11 @@ fn draw() -> Unit {
   // then bigger nodes. A label that would overlap one already drawn is
   // skipped, so a crowded view shows fewer names instead of a smear, and
   // zooming in brings the rest back.
+  let label_all = scene.focus_layout && scene.sim_nodes.length() <= 80
   let candidates = []
   for k, i in scene.sim_nodes {
     let screen_r = scene.radius[i] * scene.scale
-    let wanted = scene.focus_layout ||
+    let wanted = label_all ||
       i == hovered ||
       i == scene.selected ||
       (few_impacted && scene.impact[i]) ||

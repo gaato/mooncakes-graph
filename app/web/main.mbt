@@ -625,9 +625,6 @@ fn status_view(m : Model) -> Html {
           let shown = scene.sim_nodes.length()
           let hint = match (m.hovered, m.selected) {
             (Some(name), _) => name
-            (None, Some(name)) if scene.focus_layout &&
-              !scene.target_x.is_empty() =>
-              "\{shown} modules: what \{name} depends on (blue, left) and what depends on it (orange, right) · edges flow the way a change spreads"
             (None, Some(name)) if scene.focus_layout =>
               "\{shown} modules: \{name}, what depends on it (orange) and what it depends on (blue) · edges flow the way a change spreads"
             (None, _) =>
