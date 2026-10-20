@@ -5,14 +5,18 @@ keeps at `$MOON_HOME/registry/index` (default `~/.moon/registry/index`).
 
 The index holds one JSON line per published version under
 `user/<owner>/<name>.index`. This module turns those lines into
-`VersionRecord { name, version, deps, created_at, yanked, deprecated }`.
+`VersionRecord { name, version, deps, created_at, yanked, deprecated, about }`,
+where `about` holds the description, repository, license, keywords and yank
+reason.
 
 - `gaato/mooncakes_index` — pure, every backend
-  - `parse_line` reads an index line, or a line of the JSONL that
-    `VersionRecord::to_json` writes; the latter is a subset of the former.
+  - `parse_line` reads an index line, or a line that `VersionRecord::to_json`
+    wrote.
   - `current` picks the version that represents a module now: the last
     version that is not yanked. If every version is yanked, it picks the
     last one.
+  - `compare_versions` orders semantic versions, and `release_line` gives
+    the line they stay compatible within (`0.22` for `0.22.5`).
   - `owner` and `compare_names` (byte order) are small helpers.
 - `gaato/mooncakes_index/fs` — reads the directory (native, js, wasm)
   - `index_dir` resolves the path.
