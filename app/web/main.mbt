@@ -34,6 +34,12 @@ fn pointer_id(e : @dom.MouseEvent) -> Int32 {
 }
 
 ///|
+/// Rabbita turns every link click into a request for the app, so external
+/// links open their own tab here, as their `target` asks.
+extern "js" fn open_tab(href : String) -> Unit =
+  #|(h) => { window.open(h, "_blank", "noopener"); }
+
+///|
 extern "js" fn console_warn(s : String) -> Unit = "(s) => console.warn(s)"
 
 ///|
@@ -64,6 +70,7 @@ enum Msg {
   Loaded(Result[String, Error])
   Frame
   UrlChanged(@url.Url)
+  LinkClicked(@url.UrlRequest)
   KeyDown(String)
   Wheel(@dom.WheelEvent)
   PointerDown(@dom.MouseEvent)
@@ -184,6 +191,11 @@ fn update(model : Model, msg : Msg, _ : Emit[Msg]) -> (Model, Cmd) {
         (apply_selection(model, name), @rabbita.none)
       }
     }
+    LinkClicked(External(href)) => {
+      open_tab(href)
+      (model, @rabbita.none)
+    }
+    LinkClicked(Internal(url)) => (model, @nav.load(url.to_string()))
     KeyDown("Escape") =>
       if model.selected is Some(_) {
         select_and_push(model, None)
@@ -336,6 +348,7 @@ fn subscriptions(_ : Model, emit : Emit[Msg]) -> @sub.Sub {
   @sub.batch([
     @sub.on_animation_frame(emit.map(_ => Frame)),
     @sub.on_url_changed(emit.map(url => UrlChanged(url))),
+    @sub.on_url_request(emit.map(req => LinkClicked(req))),
     @sub.on_key_down(emit.map(k => KeyDown(k.key()))),
   ])
 }
