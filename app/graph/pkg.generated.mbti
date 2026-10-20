@@ -16,11 +16,14 @@ pub struct Graph {
   ids : Map[String, Int]
   owners : Array[String]
   current : Array[@mooncakes_index.VersionRecord]
+  history : Array[Array[@mooncakes_index.VersionRecord]]
   yanked : Array[Bool]
   deps : Array[Array[Int]]
   dependents : Array[Array[Int]]
   dangling : Int
 }
+pub fn Graph::asked(Self, Int, Int) -> String?
+pub fn Graph::behind(Self, Int, Int) -> Bool
 pub fn Graph::edge_count(Self) -> Int
 pub fn Graph::from_records(ArrayView[@mooncakes_index.VersionRecord]) -> Self
 pub fn Graph::mask(Self, ArrayView[String]) -> Array[Bool]

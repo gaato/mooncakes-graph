@@ -6,6 +6,8 @@ package "gaato/mooncakes-graph/web"
 // Errors
 
 // Types and methods
+type AboutStatus derive(Eq)
+
 type Model derive(Eq)
 
 type Msg

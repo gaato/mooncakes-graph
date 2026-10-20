@@ -17,6 +17,8 @@ pub struct Graph {
   owners : Array[String]
   /// The version each node stands for.
   current : Array[@mooncakes_index.VersionRecord]
+  /// Every version of each node, in publication order.
+  history : Array[Array[@mooncakes_index.VersionRecord]]
   /// Every published version is yanked.
   yanked : Array[Bool]
   deps : Array[Array[Int32]]
@@ -64,6 +66,7 @@ pub fn Graph::new(
     ids,
     owners: names.map(n => @mooncakes_index.owner(n).to_owned()),
     current,
+    history: sorted.map(m => m.1),
     yanked,
     deps,
     dependents,
@@ -85,6 +88,35 @@ pub fn Graph::from_records(
     }
   }
   Graph::new(groups.to_array())
+}
+
+///|
+/// The version of `b` that the current version of `a` asks for, if `a`
+/// depends on `b` with a version.
+pub fn Graph::asked(self : Graph, a : Int32, b : Int32) -> String? {
+  let name = self.names[b]
+  for dep in self.current[a].deps {
+    if dep.name == name {
+      return dep.version
+    }
+  }
+  None
+}
+
+///|
+/// Whether `a` asks for `b` from an older release line than `b`'s current
+/// version, so that moving to it may break `a` (`0.20.3` against `0.22.5`;
+/// not `0.22.4`). Requirements that are not plain versions (`*`, `^0.1.0`)
+/// never count.
+pub fn Graph::behind(self : Graph, a : Int32, b : Int32) -> Bool {
+  guard self.asked(a, b) is Some(v) else { return false }
+  let latest = self.current[b].version
+  match
+    (@mooncakes_index.release_line(v), @mooncakes_index.release_line(latest)) {
+    (Some(lv), Some(ll)) =>
+      lv != ll && @mooncakes_index.compare_versions(v, latest) < 0
+    _ => false
+  }
 }
 
 ///|

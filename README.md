@@ -16,7 +16,11 @@ Unofficial; not affiliated with mooncakes.io or the MoonBit team.
   modules gets its own colour; the rest are grey.
 - **Hover and click:** hovering shows a module's neighbours. Clicking
   highlights everything that would be affected by a change to the module,
-  and opens its details with links to mooncakes.io.
+  and opens its details: the description, licence and keywords from its
+  current version, its release history, and links to mooncakes.io and its
+  source. The lists of what it depends on and what depends on it give the
+  version asked for along each edge, marked when it is from an older release
+  line (`0.20.x` against `0.22.5`).
 - **Links:** `?m=owner/name` links to a module. Esc and Back return to the
   overview.
 - **Toggles:**
@@ -27,6 +31,8 @@ Unofficial; not affiliated with mooncakes.io or the MoonBit team.
 
 The data is the registry index as `moon update` fetches it. A daily job turns
 it into `data/versions.jsonl`, and the browser computes everything else.
+Descriptions and the rest come from `data/modules.jsonl`, which is fetched
+when a module is first opened.
 
 ## CLI
 
@@ -50,6 +56,7 @@ gaato/http
 | `deps MODULE...` | Modules MODULE depends on, as a tree. |
 | `top [-n N] [--by direct\|transitive\|owners]` | A ranking, as TSV. |
 | `versions` | Every published version, as one JSON object per line. |
+| `modules` | Each module's description, repository, licence and keywords, from its current version, as one JSON object per line. |
 
 The trees follow `tree(1)`:
 

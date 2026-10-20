@@ -43,6 +43,63 @@ extern "js" fn open_tab(href : String) -> Unit =
 extern "js" fn console_warn(s : String) -> Unit = "(s) => console.warn(s)"
 
 ///|
+/// The `modules` data (descriptions, repositories, ...), fetched the first
+/// time a module is selected.
+enum AboutStatus {
+  Idle
+  Fetching
+  Fetched
+  Unavailable
+} derive(Eq)
+
+///|
+let abouts : Map[String, @mooncakes_index.About] = Map([])
+
+///|
+/// A browsable URL for a `repository` field: https as is, `git+https` and
+/// `git@host:path` rewritten, a bare `host.tld/path` given https. Anything
+/// else (`add`, a `javascript:` URL) gets no link.
+fn source_url(repo : String) -> String? {
+  let repo = repo.trim().to_owned()
+  let url = if repo.has_prefix("https://") || repo.has_prefix("http://") {
+    repo
+  } else if repo.has_prefix("git+https://") {
+    repo[4:].to_owned()
+  } else if repo.has_prefix("git@") && repo.contains(":") {
+    let rest = repo[4:].to_owned()
+    guard rest.find(":") is Some(i) else { return None }
+    "https://\{rest[:i]}/\{rest[i + 1:]}"
+  } else if repo.split("/").next() is Some(host) &&
+    host.contains(".") &&
+    !host.contains(":") {
+    "https://" + repo
+  } else {
+    return None
+  }
+  let url = if url.has_suffix(".git") {
+    url[:url.length() - 4].to_owned()
+  } else {
+    url
+  }
+  // Something after the scheme, and no whitespace that would break the link.
+  guard url.find("://") is Some(i) && url.length() > i + 3 && !url.contains(" ") else {
+    return None
+  }
+  Some(url)
+}
+
+///|
+/// The host of an http(s) URL, for link text.
+fn host_of(url : String) -> String {
+  guard url.find("://") is Some(i) else { return url }
+  let rest = url[i + 3:]
+  match rest.find("/") {
+    Some(j) => rest[:j].to_owned()
+    None => rest.to_owned()
+  }
+}
+
+///|
 enum Status {
   Loading
   Ready
@@ -63,11 +120,13 @@ struct Model {
   /// Bumped whenever the scene's metrics change, so views that read the
   /// scene re-render.
   revision : Int32
+  about : AboutStatus
 } derive(Eq)
 
 ///|
 enum Msg {
   Loaded(Result[String, Error])
+  AboutLoaded(Result[String, Error])
   Frame
   UrlChanged(@url.Url)
   LinkClicked(@url.UrlRequest)
@@ -167,7 +226,21 @@ fn select_and_push(model : Model, name : String?) -> (Model, Cmd) {
 }
 
 ///|
-fn update(model : Model, msg : Msg, _ : Emit[Msg]) -> (Model, Cmd) {
+/// Fetches the `modules` data the first time a module is selected.
+fn update(model : Model, msg : Msg, emit : Emit[Msg]) -> (Model, Cmd) {
+  let (model, cmd) = step_model(model, msg)
+  if model.selected is Some(_) && model.about is Idle {
+    let fetch = @http.get(resolve_url("data/modules.jsonl")).expect_text(
+      emit.map(r => AboutLoaded(r)),
+    )
+    ({ ..model, about: Fetching, }, @rabbita.batch([cmd, fetch]))
+  } else {
+    (model, cmd)
+  }
+}
+
+///|
+fn step_model(model : Model, msg : Msg) -> (Model, Cmd) {
   match msg {
     Loaded(Ok(body)) => {
       let skipped = load_graph(body)
@@ -178,6 +251,20 @@ fn update(model : Model, msg : Msg, _ : Emit[Msg]) -> (Model, Cmd) {
       (apply_selection(model, model.wanted), @rabbita.none)
     }
     Loaded(Err(e)) => ({ ..model, status: Failed("\{e}"), }, @rabbita.none)
+    AboutLoaded(Ok(body)) => {
+      for line in body.split("\n") {
+        if line.is_empty() {
+          continue
+        }
+        let record = @mooncakes_index.parse_line(line) catch { _ => continue }
+        abouts[record.name] = record.about
+      }
+      ({ ..model, about: Fetched, }, @rabbita.none)
+    }
+    AboutLoaded(Err(e)) => {
+      console_warn("mooncakes-graph: no module details: \{e}")
+      ({ ..model, about: Unavailable, }, @rabbita.none)
+    }
     Frame => {
       step()
       draw()
@@ -369,6 +456,7 @@ fn main {
             selected: None,
             hovered: None,
             revision: 0,
+            about: Idle,
           },
           @http.get(resolve_url("data/versions.jsonl")).expect_text(
             emit.map(r => Loaded(r)),
@@ -584,27 +672,98 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
   let record = graph.current[i]
   let owner = graph.owners[i]
   let m = scene.metrics
-  let published = match record.created_at {
-    Some(t) if t.length() >= 10 => " · " + t.view(end_offset=10).to_owned()
-    _ => ""
-  }
-  let module_link = fn(n : String) {
-    if graph.ids.contains(n) {
-      @html.li(on_click=emit(Pick(n)), n)
-    } else {
-      @html.li(class="missing", n)
+  let about = abouts.get(name).unwrap_or(@mooncakes_index.About::default())
+  let day = fn(t : String?) {
+    match t {
+      Some(t) if t.length() >= 10 => Some(t.view(end_offset=10).to_owned())
+      _ => None
     }
   }
+  let published = match day(record.created_at) {
+    Some(d) => " · " + d
+    None => ""
+  }
+  let history = graph.history[i]
+  let first = history.iter().filter_map(v => day(v.created_at)).head()
+  let releases = if history.length() == 1 {
+    "1 version"
+  } else {
+    "\{history.length()} versions"
+  }
+  let since = match first {
+    Some(d) => "\{releases} since \{d}"
+    None => releases
+  }
+  let license = match about.license {
+    Some(l) => " · \{l}"
+    None => ""
+  }
+  // One row of a module list: the module, and the version of `of` asked for
+  // along that edge, marked when older than the current one.
+  let module_row = fn(n : String, asked : String?, behind : Bool) {
+    let version = match asked {
+      Some(v) =>
+        @html.span(
+          class=if behind { "ver behind" } else { "ver" },
+          if behind {
+            "\{v} (older line)"
+          } else {
+            v
+          },
+        )
+      None => text("")
+    }
+    if graph.ids.contains(n) {
+      @html.li(on_click=emit(Pick(n)), [@html.span(class="name", n), version])
+    } else {
+      @html.li(class="missing", [@html.span(class="name", n), version])
+    }
+  }
+  let deps = record.deps.map(d => {
+    let behind = match graph.ids.get(d.name) {
+      Some(b) => graph.behind(i, b)
+      None => false
+    }
+    module_row(d.name, d.version, behind)
+  })
   let dependents = graph.dependents[i].copy()
   dependents.sort_by((a, b) => m.transitive[b].compare(m.transitive[a]))
+  let behind = dependents.filter(d => graph.behind(d, i)).length()
+  let line = @mooncakes_index.release_line(record.version).unwrap_or(
+    record.version,
+  )
+  let source = match about.repository {
+    Some(r) => source_url(r)
+    None => None
+  }
+  let link = fn(href : String, label : String) {
+    @html.a(href~, target=Blank, rel="noopener", label)
+  }
   div(class="detail", [
     div(class="detail-head", [
       @html.h2(name),
       @html.button(class="close", on_click=emit(Clear), "×"),
     ]),
-    @html.p(class="meta", "\{record.version}\{published} · by \{owner}"),
+    match about.description {
+      Some(d) => @html.p(class="description", d)
+      None => text("")
+    },
+    @html.p(class="meta", [
+      text("\{record.version}\{published} · by \{owner}"),
+      @html.br(),
+      text("\{since}\{license}"),
+    ]),
+    if about.keywords.is_empty() {
+      text("")
+    } else {
+      div(class="keywords", about.keywords.map(k => @html.span(k)))
+    },
     if graph.yanked[i] {
-      @html.p(class="warn", "Every version of this module is yanked.")
+      let why = match about.yanked_reason {
+        Some(r) => ": \{r}"
+        None => "."
+      }
+      @html.p(class="warn", "Every version of this module is yanked\{why}")
     } else {
       text("")
     },
@@ -621,18 +780,12 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
       @html.dd("\{m.owners[i]}"),
     ]),
     div(class="links", [
-      @html.a(
-        href="https://mooncakes.io/docs/\{name}",
-        target=Blank,
-        rel="noopener",
-        "Docs on mooncakes.io",
-      ),
-      @html.a(
-        href="https://mooncakes.io/user/\{owner}",
-        target=Blank,
-        rel="noopener",
-        "More by \{owner}",
-      ),
+      link("https://mooncakes.io/docs/\{name}", "Docs on mooncakes.io"),
+      match source {
+        Some(url) => link(url, "Source on \{host_of(url)}")
+        None => text("")
+      },
+      link("https://mooncakes.io/user/\{owner}", "More by \{owner}"),
     ]),
     @rui.button(
       variant=Outline,
@@ -646,8 +799,21 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
       },
     ),
     @html.h2(class="sub", "Depends on (\{record.deps.length()})"),
-    @html.ul(class="list", record.deps.map(d => module_link(d.name))),
+    @html.ul(class="list", deps),
     @html.h2(class="sub", "Depended on by (\{dependents.length()})"),
-    @html.ul(class="list", dependents.map(d => module_link(graph.names[d]))),
+    if behind > 0 {
+      @html.p(
+        class="note",
+        "\{behind} of \{dependents.length()} ask for a release line before \{line}.",
+      )
+    } else {
+      text("")
+    },
+    @html.ul(
+      class="list",
+      dependents.map(d => {
+        module_row(graph.names[d], graph.asked(d, i), graph.behind(d, i))
+      }),
+    ),
   ])
 }

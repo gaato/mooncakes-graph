@@ -12,6 +12,7 @@ fn rec(
     created_at: None,
     yanked,
     deprecated: None,
+    about: @mooncakes_index.About::default(),
   }
 }
 
@@ -74,4 +75,40 @@ test "transitive deps" {
   assert_eq(g.transitive_deps(4), [2, 1, 0])
   assert_eq(g.transitive_deps(4, excluded=g.mask(["a/util"])), [2])
   assert_eq(g.transitive_deps(0), [])
+}
+
+///|
+test "asked versions and who is behind" {
+  let dep = fn(name : String, version : String?) -> @mooncakes_index.Dep {
+    { name, version, }
+  }
+  let r = fn(
+    name : String,
+    version : String,
+    deps : Array[@mooncakes_index.Dep],
+  ) -> @mooncakes_index.VersionRecord {
+    { ..rec(name, version, []), deps, }
+  }
+  let g = @graph.Graph::from_records([
+    r("a/core", "0.2.0", []),
+    r("a/core", "0.3.0", []),
+    r("a/core", "0.3.1", []),
+    r("b/old", "0.1.0", [dep("a/core", Some("0.2.0"))]),
+    r("b/new", "0.1.0", [dep("a/core", Some("0.3.0"))]),
+    r("b/newest", "0.1.0", [dep("a/core", Some("0.3.1"))]),
+    r("b/range", "0.1.0", [dep("a/core", Some("^0.2.0"))]),
+    r("b/path", "0.1.0", [dep("a/core", None)]),
+  ])
+  let id = fn(n : String) { g.ids[n] }
+  let core = id("a/core")
+  assert_eq(g.history[core].map(v => v.version), ["0.2.0", "0.3.0", "0.3.1"])
+  assert_eq(g.asked(id("b/old"), core), Some("0.2.0"))
+  assert_eq(g.asked(id("b/path"), core), None)
+  assert_eq(g.asked(core, id("b/old")), None)
+  assert_true(g.behind(id("b/old"), core))
+  // Same release line, only an older patch: not behind.
+  assert_true(!g.behind(id("b/new"), core))
+  assert_true(!g.behind(id("b/newest"), core))
+  assert_true(!g.behind(id("b/range"), core))
+  assert_true(!g.behind(id("b/path"), core))
 }
