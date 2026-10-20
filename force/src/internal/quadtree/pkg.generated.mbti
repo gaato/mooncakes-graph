@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "gaato/force/quadtree"
+package "gaato/force/internal/quadtree"
 
 // Values
 pub fn build(Array[Double], Array[Double], weights? : Array[Double]) -> Tree

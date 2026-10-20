@@ -219,24 +219,18 @@ fn relayout() -> Unit {
       }
     }
   }
-  let sim = @force.Simulation::new(nodes.length(), seed=1)
+  // Every setting below has one value per node and every link joins two
+  // laid-out nodes, so the forces always fit.
+  let sim = new_simulation(nodes, links) catch {
+    e => abort("mooncakes-graph: layout rejected: \{(e : Error)}")
+  }
   let mut resumed = false
   for k, i in nodes {
     if scene.placed[i] {
-      sim.set_position(k, scene.px[i], scene.py[i])
+      sim.set_position(k, x=scene.px[i], y=scene.py[i])
       resumed = true
     }
   }
-  sim.add_force(@force.link(links, distance=30.0))
-  sim.add_force(
-    @force.many_body(
-      strengths=nodes.map(i => -20.0 - 4.0 * scene.radius[i]),
-      distance_max=600.0,
-    ),
-  )
-  sim.add_force(@force.collide(nodes.map(i => scene.radius[i] + 1.5)))
-  sim.add_force(@force.x(strength=0.03))
-  sim.add_force(@force.y(strength=0.03))
   if resumed && !focus {
     sim.set_alpha(0.5)
   }
@@ -249,6 +243,29 @@ fn relayout() -> Unit {
     scene.follow = NO_NODE
     scene.auto_fit = true
   }
+}
+
+///|
+/// The map's layout: linked modules pull together, all repel, none overlap,
+/// and a weak pull to the origin keeps islands from drifting off.
+fn new_simulation(
+  nodes : Array[Int32],
+  links : Array[(Int32, Int32)],
+) -> @force.Simulation raise @force.ForceError {
+  let sim = @force.Simulation::new(nodes.length(), seed=1)
+  sim.add_force(@force.link(links, distance=All(30)))
+  sim.add_force(
+    @force.many_body(
+      strength=Each(nodes.map(i => -20.0 - 4.0 * scene.radius[i])),
+      distance_max=600.0,
+    ),
+  )
+  sim.add_force(
+    @force.collide(radius=Each(nodes.map(i => scene.radius[i] + 1.5))),
+  )
+  sim.add_force(@force.x(strength=All(0.03)))
+  sim.add_force(@force.y(strength=All(0.03)))
+  sim
 }
 
 ///|

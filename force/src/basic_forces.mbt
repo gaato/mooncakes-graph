@@ -58,26 +58,18 @@ fn Simulation::apply_center(
 ///|
 fn Simulation::apply_position(
   self : Simulation,
-  axis : Bool,
-  target : Double,
-  strength : Double,
-  targets : Array[Double]?,
-  strengths : Array[Double]?,
+  horizontal : Bool,
+  targets : Array[Double],
+  strengths : Array[Double],
 ) -> Unit {
   for i in 0..<self.node_count() {
-    let t = match targets {
-      Some(a) => a[i]
-      None => target
-    }
-    let s = match strengths {
-      Some(a) => a[i]
-      None => strength
-    }
+    let t = targets[i]
+    // A NaN target leaves that node alone on this axis.
     if !t.is_nan() {
-      if axis {
-        self.vxs[i] += (t - self.xs[i]) * s * self.alpha
+      if horizontal {
+        self.vxs[i] += (t - self.xs[i]) * strengths[i] * self.alpha
       } else {
-        self.vys[i] += (t - self.ys[i]) * s * self.alpha
+        self.vys[i] += (t - self.ys[i]) * strengths[i] * self.alpha
       }
     }
   }

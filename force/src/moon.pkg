@@ -1,7 +1,8 @@
 import {
   "moonbitlang/core/math",
   "moonbitlang/core/double",
-  "gaato/force/quadtree",
+  "moonbitlang/core/debug",
+  "gaato/force/internal/quadtree",
 }
 
 supported_targets = "js + native + wasm-gc"

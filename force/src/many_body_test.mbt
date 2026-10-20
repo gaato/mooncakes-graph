@@ -1,9 +1,9 @@
 ///|
-fn random_sim(n : Int32) -> @force.Simulation {
-  let rng = @force.Random::new(seed=456U)
+fn random_sim(n : Int32) -> @force.Simulation raise {
+  let rng = Lcg::new(456)
   let sim = @force.Simulation::new(n)
   for i in 0..<n {
-    sim.set_position(i, rng.next() * 1000, rng.next() * 1000)
+    sim.set_position(i, x=rng.next() * 1000, y=rng.next() * 1000)
   }
   sim.set_alpha_decay(0)
   sim.set_velocity_decay(0)
@@ -31,8 +31,8 @@ test "Barnes-Hut theta zero is exact; theta .9 has bounded RMS error" {
       vy[i] += dy * weights[j] / denom
     }
   }
-  exact.add_force(@force.many_body(theta=0, strengths=weights))
-  approx.add_force(@force.many_body(theta=0.9, strengths=weights))
+  exact.add_force(@force.many_body(theta=0, strength=Each(weights)))
+  approx.add_force(@force.many_body(theta=0.9, strength=Each(weights)))
   exact.tick()
   approx.tick()
   let mut error = 0.0
@@ -53,17 +53,17 @@ test "Barnes-Hut theta zero is exact; theta .9 has bounded RMS error" {
 ///|
 test "distance cutoffs and signed child-mass center" {
   let sim = @force.Simulation::new(2)
-  sim.set_position(0, 0, 0)
-  sim.set_position(1, 3, 4)
+  sim.set_position(0, x=0, y=0)
+  sim.set_position(1, x=3, y=4)
   sim.set_velocity_decay(0)
   sim.set_alpha_decay(0)
-  sim.add_force(@force.many_body(theta=0, strength=-10, distance_min=10))
+  sim.add_force(@force.many_body(theta=0, strength=All(-10), distance_min=10))
   sim.tick()
   assert_true((sim.vxs()[0] + 0.6).abs() < 1.0e-12)
   assert_true((sim.vys()[0] + 0.8).abs() < 1.0e-12)
   sim.clear_forces()
-  sim.set_velocity(0, 0, 0)
-  sim.set_velocity(1, 0, 0)
+  sim.set_velocity(0, vx=0, vy=0)
+  sim.set_velocity(1, vx=0, vy=0)
   sim.add_force(@force.many_body(distance_max=1))
   sim.tick()
   assert_eq(sim.vxs()[0], 0)

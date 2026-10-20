@@ -32,7 +32,7 @@ jobs:
         run: |
           moon test --target native
           moon test --target js
-          moon test --target wasm-gc -p gaato/force -p gaato/force/quadtree -p gaato/mooncakes_index
+          moon test --target wasm-gc -p gaato/force -p gaato/force/internal/quadtree -p gaato/mooncakes_index
 
       # Compares the CLI against an independent Python reader and tree(1).
       - name: Gates

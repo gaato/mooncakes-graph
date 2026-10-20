@@ -1,22 +1,11 @@
 ///|
 fn Simulation::apply_many_body(
   self : Simulation,
-  strength : Double,
-  strengths : Array[Double]?,
+  weights : Array[Double],
   theta : Double,
   dmin : Double,
   dmax : Double,
 ) -> Unit {
-  // Reuse the predicted-coordinate scratch buffer for uniform weights.
-  let weights = match strengths {
-    Some(a) => a
-    None => {
-      for i in 0..<self.node_count() {
-        self.px[i] = strength
-      }
-      self.px
-    }
-  }
   self.tree.rebuild(self.xs, self.ys, weights~)
   let theta2 = theta * theta
   let min2 = dmin * dmin

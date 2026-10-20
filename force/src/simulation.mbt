@@ -8,7 +8,7 @@ pub struct Simulation {
   priv vys : Array[Double]
   priv fx : Array[Double?]
   priv fy : Array[Double?]
-  priv forces : Array[Force]
+  priv forces : Array[Installed]
   priv random : Random
   priv tree : @quadtree.Tree
   priv px : Array[Double]
@@ -21,9 +21,24 @@ pub struct Simulation {
 }
 
 ///|
-/// d3 phyllotaxis initialization; no forces are installed by default.
-pub fn Simulation::new(n : Int32, seed~ : UInt32 = 1U) -> Simulation {
-  guard! n >= 0
+/// A simulation of `n` nodes, placed in d3's phyllotaxis spiral and at rest,
+/// with no forces. `seed` fixes the small random nudges that separate
+/// coincident nodes, so a run is the same on every backend.
+///
+/// ```mbt check
+/// test {
+///   let sim = @force.Simulation::new(3)
+///   sim.add_force(@force.link([(0, 1), (1, 2)]))
+///   sim.add_force(@force.many_body())
+///   sim.tick(iterations=300)
+///   inspect(sim.node_count(), content="3")
+/// }
+/// ```
+pub fn Simulation::new(
+  n : Int32,
+  seed~ : UInt32 = 1,
+) -> Simulation raise ForceError {
+  guard n >= 0 else { raise InvalidSetting(setting="n", value=n.to_double()) }
   let angle = @math.PI * (3 - 5.0.sqrt())
   let xs = Array::makei(n, i => {
     10.0 * (0.5 + i.to_double()).sqrt() * initial_cos(i.to_double() * angle)
@@ -77,22 +92,24 @@ pub fn Simulation::vys(self : Simulation) -> ArrayView[Double] {
 }
 
 ///|
+/// Moves node `i`, which must be below `node_count`, like an array index.
 pub fn Simulation::set_position(
   self : Simulation,
   i : Int32,
-  x : Double,
-  y : Double,
+  x~ : Double,
+  y~ : Double,
 ) -> Unit {
   self.xs[i] = x
   self.ys[i] = y
 }
 
 ///|
+/// Sets node `i`'s velocity; `i` must be below `node_count`.
 pub fn Simulation::set_velocity(
   self : Simulation,
   i : Int32,
-  vx : Double,
-  vy : Double,
+  vx~ : Double,
+  vy~ : Double,
 ) -> Unit {
   self.vxs[i] = vx
   self.vys[i] = vy
@@ -139,36 +156,15 @@ pub fn Simulation::set_velocity_decay(
 }
 
 ///|
-/// Append a force. Configuration arrays are copied by force constructors.
-/// Node-dependent arrays/indices are checked here against the simulation size.
-pub fn Simulation::add_force(self : Simulation, force : Force) -> Unit {
-  let n = self.node_count()
-  match force {
-    Link(edges, distances, strengths, _, _) => {
-      for (s, t) in edges {
-        guard! s >= 0 && s < n && t >= 0 && t < n
-      }
-      guard! distances.length() == edges.length() &&
-        strengths.length() == edges.length()
-    }
-    ManyBody(_, strengths, _, _, _) =>
-      if strengths is Some(a) {
-        guard! a.length() == n
-      }
-    Collide(radii, _, _) => {
-      guard! radii.length() == n
-    }
-    Position(_, _, _, targets, strengths) => {
-      if targets is Some(a) {
-        guard! a.length() == n
-      }
-      if strengths is Some(a) {
-        guard! a.length() == n
-      }
-    }
-    Center(_, _, _) => ()
-  }
-  self.forces.push(force)
+/// Installs `force` after the ones already installed; `tick` applies them in
+/// that order. Raises, installing nothing, when the force does not fit this
+/// simulation: an `Each` of the wrong length, a link to a missing node, or a
+/// negative radius or iteration count.
+pub fn Simulation::add_force(
+  self : Simulation,
+  force : Force,
+) -> Unit raise ForceError {
+  self.forces.push(force.install(self.node_count()))
 }
 
 ///|
@@ -184,15 +180,15 @@ pub fn Simulation::tick(self : Simulation, iterations~ : Int32 = 1) -> Unit {
     self.alpha += (self.alpha_target - self.alpha) * self.alpha_decay
     for force in self.forces {
       match force {
-        Link(edges, distances, strengths, bias, count) =>
-          self.apply_link(edges, distances, strengths, bias, count)
-        ManyBody(strength, strengths, theta, dmin, dmax) =>
-          self.apply_many_body(strength, strengths, theta, dmin, dmax)
-        Center(x, y, strength) => self.apply_center(x, y, strength)
-        Collide(radii, strength, count) =>
-          self.apply_collide(radii, strength, count)
-        Position(axis, target, strength, targets, strengths) =>
-          self.apply_position(axis, target, strength, targets, strengths)
+        Link(edges~, distances~, strengths~, bias~, iterations~) =>
+          self.apply_link(edges, distances, strengths, bias, iterations)
+        ManyBody(strengths~, theta~, distance_min~, distance_max~) =>
+          self.apply_many_body(strengths, theta, distance_min, distance_max)
+        Center(x~, y~, strength~) => self.apply_center(x, y, strength)
+        Collide(radii~, strength~, iterations~) =>
+          self.apply_collide(radii, strength, iterations)
+        Position(horizontal~, targets~, strengths~) =>
+          self.apply_position(horizontal, targets, strengths)
       }
     }
     for i in 0..<self.node_count() {
