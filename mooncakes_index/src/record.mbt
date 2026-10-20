@@ -1,11 +1,15 @@
 ///|
-/// A dependency of one published version.
+/// A dependency of one published version, as its `moon.mod` declared it.
 ///
-/// `version` is `None` for a local `{"path": ...}` dependency that was
-/// published without a version requirement.
-pub(all) struct Dep {
+/// Most are `"name": "version"`. Some name a local `path` (with or without a
+/// version) or import the module under another name (`alias` in the index).
+pub struct Dep {
   name : String
+  /// `None` for a local path dependency published without a version.
   version : String?
+  /// The name the module is imported as, when not its own.
+  imported_as : String?
+  path : String?
 } derive(Eq, Debug)
 
 ///|
@@ -15,29 +19,47 @@ pub extend Dep with Eq::{equal, not_equal}
 pub extend Dep with @debug.Debug::{to_repr}
 
 ///|
+pub fn Dep::new(
+  name : String,
+  version? : String,
+  imported_as? : String,
+  path? : String,
+) -> Dep {
+  { name, version, imported_as, path, }
+}
+
+///|
 /// What a version says about its module, from its `moon.mod`. Every field is
 /// optional in the index.
-pub(all) struct About {
+pub struct About {
   description : String?
   repository : String?
   license : String?
   keywords : Array[String]
   /// Why the version was yanked, when it was and the owner said.
   yanked_reason : String?
-} derive(Eq, Debug, Default)
+} derive(Eq, Debug)
 
 ///|
 pub extend About with Eq::{equal, not_equal}
 
 ///|
-pub extend About with Default::{default}
-
-///|
 pub extend About with @debug.Debug::{to_repr}
 
 ///|
+pub fn About::new(
+  description? : String,
+  repository? : String,
+  license? : String,
+  keywords~ : Array[String] = [],
+  yanked_reason? : String,
+) -> About {
+  { description, repository, license, keywords, yanked_reason, }
+}
+
+///|
 /// One line of the index: one published version of one module.
-pub(all) struct VersionRecord {
+pub struct VersionRecord {
   name : String
   version : String
   deps : Array[Dep]
@@ -55,10 +77,27 @@ pub extend VersionRecord with Eq::{equal, not_equal}
 pub extend VersionRecord with @debug.Debug::{to_repr}
 
 ///|
+pub fn VersionRecord::new(
+  name : String,
+  version~ : String,
+  deps~ : Array[Dep] = [],
+  created_at? : String,
+  yanked~ : Bool = false,
+  deprecated? : String,
+  about~ : About = About::new(),
+) -> VersionRecord {
+  { name, version, deps, created_at, yanked, deprecated, about, }
+}
+
+///|
+/// A line that is not a version record.
 pub(all) suberror ParseError {
-  InvalidJson(String)
-  MissingField(String)
-} derive(Debug)
+  InvalidJson(message~ : String)
+  MissingField(field~ : String)
+} derive(Eq, Debug)
+
+///|
+pub extend ParseError with Eq::{equal, not_equal}
 
 ///|
 pub extend ParseError with @debug.Debug::{to_repr}
@@ -68,32 +107,44 @@ pub extend ParseError with @debug.Debug::{to_repr}
 /// `VersionRecord::to_json` writes; the latter is a subset of the former.
 ///
 /// Fields other than the ones in `VersionRecord` and `About` are ignored;
-/// empty strings in `About` read as absent. A dependency is
-/// either `"name": "version"` or an object with an optional `"version"`
-/// (`{"version", "alias"}` or a local `{"path"}`).
+/// empty strings in `About` read as absent. A dependency is either
+/// `"name": "version"` or an object with any of `version`, `alias` and
+/// `path`.
 pub fn parse_line(line : StringView) -> VersionRecord raise ParseError {
-  let json = @json.parse(line) catch { e => raise InvalidJson(e.to_string()) }
-  guard json is Object(obj) else { raise InvalidJson("not an object") }
+  let json = @json.parse(line) catch {
+    e => raise InvalidJson(message=e.to_string())
+  }
+  guard json is Object(obj) else { raise InvalidJson(message="not an object") }
   guard obj.get("name") is Some(String(name)) else {
-    raise MissingField("name")
+    raise MissingField(field="name")
   }
   guard obj.get("version") is Some(String(version)) else {
-    raise MissingField("version")
+    raise MissingField(field="version")
   }
   let deps = []
   if obj.get("deps") is Some(Object(map)) {
     for dep, req in map {
-      let version = match req {
-        String(v) => Some(v)
-        Object(o) =>
-          if o.get("version") is Some(String(v)) {
-            Some(v)
-          } else {
-            None
-          }
-        _ => None
+      let field = fn(o : Map[String, Json], key : String) -> String? {
+        if o.get(key) is Some(String(v)) {
+          Some(v)
+        } else {
+          None
+        }
       }
-      deps.push({ name: dep, version, })
+      deps.push(
+        match req {
+          String(v) =>
+            { name: dep, version: Some(v), imported_as: None, path: None, }
+          Object(o) =>
+            {
+              name: dep,
+              version: field(o, "version"),
+              imported_as: field(o, "alias"),
+              path: field(o, "path"),
+            }
+          _ => { name: dep, version: None, imported_as: None, path: None, }
+        },
+      )
     }
   }
   let created_at = if obj.get("created_at") is Some(String(t)) {
@@ -155,14 +206,30 @@ pub extend About with ToJson::{to_json}
 
 ///|
 /// The natural JSONL shape:
-/// `{"name","version","created_at","deps":{name: version|null},"yanked","deprecated"?}`
-/// followed by the `About` fields that are present.
+/// `{"name","version","created_at","deps":{…},"yanked","deprecated"?}`
+/// followed by the `About` fields that are present. A dependency is its
+/// version (or `null`), or, when it has another import name or a path, an
+/// object of the fields it has, under the index's names.
 pub impl ToJson for VersionRecord with fn to_json(self) {
   let deps : Map[String, Json] = Map([])
   for dep in self.deps {
-    deps[dep.name] = match dep.version {
-      Some(v) => Json::string(v)
-      None => Json::null()
+    deps[dep.name] = match dep {
+      { imported_as: None, path: None, version: Some(v), .. } => Json::string(v)
+      { imported_as: None, path: None, version: None, .. } => Json::null()
+      _ => {
+        let o : Map[String, Json] = Map([])
+        for
+          field in [
+            ("version", dep.version),
+            ("alias", dep.imported_as),
+            ("path", dep.path),
+          ] {
+          if field.1 is Some(v) {
+            o[field.0] = Json::string(v)
+          }
+        }
+        Json::object(o)
+      }
     }
   }
   let obj : Map[String, Json] = Map([
@@ -196,27 +263,6 @@ pub fn owner(name : StringView) -> StringView {
     Some(i) => name[:i]
     None => name
   }
-}
-
-///|
-/// The version that represents a module now: the last version that is not
-/// yanked, or the last version when every version is yanked.
-///
-/// `versions` must be in publication order, which is the order of the lines
-/// in the index.
-pub fn current(versions : ArrayView[VersionRecord]) -> VersionRecord? {
-  for i = versions.length() - 1; i >= 0; i = i - 1 {
-    if !versions[i].yanked {
-      return Some(versions[i])
-    }
-  }
-  versions.last()
-}
-
-///|
-/// Whether every version of a module is yanked.
-pub fn all_yanked(versions : ArrayView[VersionRecord]) -> Bool {
-  !versions.is_empty() && versions.iter().all(v => v.yanked)
 }
 
 ///|

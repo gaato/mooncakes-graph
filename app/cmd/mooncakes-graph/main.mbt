@@ -88,7 +88,15 @@ fn run(args : ArrayView[String]) -> Int32 raise {
 let common_options : Array[@args.OptionSpec] = [@args.option("index")]
 
 ///|
-fn load_index(parsed : @args.ParsedArgs) -> @index_fs.Index raise {
+/// The index as the commands see it: without `@graph.absent_owners`.
+struct Loaded {
+  modules : Array[@mooncakes_index.Module]
+  /// When `moon update` last moved the index (Unix seconds), if known.
+  fetched_at : Int64?
+}
+
+///|
+fn load_index(parsed : @args.ParsedArgs) -> Loaded raise {
   let dir = match parsed.last_value("index") {
     Some(d) => d
     None =>
@@ -98,17 +106,18 @@ fn load_index(parsed : @args.ParsedArgs) -> @index_fs.Index raise {
       }
   }
   let index = @index_fs.read(dir) catch {
-    @index_fs.NotFound(_) =>
+    NotFound(..) =>
       raise Fatal("no index at \{dir} (run `moon update` to fetch it)")
-    e => raise Fatal("cannot read the index at \{dir}: \{e}")
+    Unreadable(path~, message~) =>
+      raise Fatal("cannot read the index at \{path}: \{message}")
   }
   if index.skipped > 0 {
     eprintln("mooncakes-graph: skipped \{index.skipped} unreadable index lines")
   }
   let modules = index.modules.filter(m => {
-    !@graph.absent_owners.contains(@mooncakes_index.owner(m.0).to_owned())
+    !@graph.absent_owners.contains(@mooncakes_index.owner(m.name).to_owned())
   })
-  { ..index, modules, }
+  { modules, fetched_at: index.fetched_at, }
 }
 
 ///|
@@ -125,13 +134,20 @@ fn versions(args : ArrayView[String]) -> Int32 raise {
   let out = StringBuilder()
   let mut first = true
   for module_ in index.modules {
-    for record in module_.1 {
+    for record in module_.versions {
       if !first {
         out.write_char('\n')
       }
       first = false
       // The graph fields only; `modules` carries the rest once per module.
-      let record = { ..record, about: @mooncakes_index.About::default(), }
+      let record = @mooncakes_index.VersionRecord::new(
+        record.name,
+        version=record.version,
+        deps=record.deps,
+        created_at?=record.created_at,
+        yanked=record.yanked,
+        deprecated?=record.deprecated,
+      )
       out.write_string(record.to_json().stringify())
     }
   }
@@ -156,7 +172,7 @@ fn modules(args : ArrayView[String]) -> Int32 raise {
   let index = load_index(parsed)
   let out = StringBuilder()
   for i, module_ in index.modules {
-    guard @mooncakes_index.current(module_.1) is Some(record) else { continue }
+    guard module_.current() is Some(record) else { continue }
     let obj : Map[String, Json] = Map([
       ("name", Json::string(record.name)),
       ("version", Json::string(record.version)),
@@ -189,7 +205,7 @@ fn stats(args : ArrayView[String]) -> Int32 raise {
   let index = load_index(parsed)
   let graph = @graph.Graph::new(index.modules)
   let count = fn(n : Int32) { Json::number(n.to_double()) }
-  let versions = index.modules.fold(init=0, (n, m) => n + m.1.length())
+  let versions = index.modules.fold(init=0, (n, m) => n + m.versions.length())
   let with_deps = graph.current.iter().filter(r => !r.deps.is_empty()).count()
   let all_yanked = graph.yanked.iter().filter(y => y).count()
   let out = Json::object(

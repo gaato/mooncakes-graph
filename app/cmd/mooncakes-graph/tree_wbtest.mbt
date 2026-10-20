@@ -4,15 +4,11 @@ fn sample_graph() -> @graph.Graph {
     name : String,
     deps : Array[String],
   ) -> @mooncakes_index.VersionRecord {
-    {
+    @mooncakes_index.VersionRecord::new(
       name,
-      version: "0.1.0",
-      deps: deps.map(d => { name: d, version: Some("0.1.0"), }),
-      created_at: None,
-      yanked: false,
-      deprecated: None,
-      about: @mooncakes_index.About::default(),
-    }
+      version="0.1.0",
+      deps=deps.map(d => @mooncakes_index.Dep::new(d, version="0.1.0")),
+    )
   }
   @graph.Graph::from_records([
     rec("a/core", []),

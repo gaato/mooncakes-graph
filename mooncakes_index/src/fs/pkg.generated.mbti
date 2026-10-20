@@ -9,17 +9,20 @@ import {
 // Values
 pub fn index_dir() -> String?
 
-pub fn read(String) -> Index raise
+pub fn read(String) -> Index raise IndexError
 
 // Errors
-pub(all) suberror NotFound {
-  NotFound(String)
-} derive(@debug.Debug)
-pub fn NotFound::to_repr(Self) -> @debug.Repr
+pub(all) suberror IndexError {
+  NotFound(dir~ : String)
+  Unreadable(path~ : String, message~ : String)
+} derive(Eq, @debug.Debug)
+pub fn IndexError::equal(Self, Self) -> Bool
+pub fn IndexError::not_equal(Self, Self) -> Bool
+pub fn IndexError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
-pub(all) struct Index {
-  modules : Array[(String, Array[@mooncakes_index.VersionRecord])]
+pub struct Index {
+  modules : Array[@mooncakes_index.Module]
   skipped : Int
   fetched_at : Int64?
 }

@@ -1,39 +1,33 @@
 # gaato/mooncakes_index
 
 Reads the [mooncakes.io](https://mooncakes.io) registry index that `moon update`
-keeps at `$MOON_HOME/registry/index` (default `~/.moon/registry/index`).
+keeps at `$MOON_HOME/registry/index` (default `~/.moon/registry/index`): every
+published version of every module, with its dependencies, dates, yank state
+and what its `moon.mod` says about it.
 
-The index holds one JSON line per published version under
-`user/<owner>/<name>.index`. This module turns those lines into
-`VersionRecord { name, version, deps, created_at, yanked, deprecated, about }`,
-where `about` holds the description, repository, license, keywords and yank
-reason.
-
-- `gaato/mooncakes_index` — pure, every backend
-  - `parse_line` reads an index line, or a line that `VersionRecord::to_json`
-    wrote.
-  - `current` picks the version that represents a module now: the last
-    version that is not yanked. If every version is yanked, it picks the
-    last one.
-  - `compare_versions` orders semantic versions, and `release_line` gives
-    the line they stay compatible within (`0.22` for `0.22.5`).
-  - `owner` and `compare_names` (byte order) are small helpers.
-- `gaato/mooncakes_index/fs` — reads the directory (native, js, wasm)
-  - `index_dir` resolves the path.
-  - `read` returns every module with its versions in publication order. It
-    counts broken lines instead of failing, and reports when `moon update`
-    last fetched.
-
-```moonbit nocheck
-let dir = @fs.index_dir().unwrap()
-let index = @fs.read(dir)
-for entry in index.modules {
-  let (name, versions) = entry
-  let now = @mooncakes_index.current(versions).unwrap()
-  println("\{name} \{now.version} \{now.deps.length()} deps")
+```mbt nocheck
+let index = @fs.read(@fs.index_dir().unwrap())
+for m in index.modules {
+  if m.current() is Some(now) {
+    println("\{m.name} \{now.version}: \{now.deps.length()} deps")
+  }
 }
 ```
 
-A dependency is usually `"name": "version"`. Some versions use an object:
-`{"version", "alias"}`, or a local `{"path"}` with no version, in which case
-`Dep::version` is `None`.
+- `gaato/mooncakes_index` is pure and runs on every backend.
+  - `parse_line` reads one line of the index into a `VersionRecord`.
+  - `Module::current` picks the version that stands for a module now: the
+    last one not yanked, or the last one when all are yanked.
+  - `compare_versions` and `release_line` order semantic versions and give
+    the line they stay compatible within.
+- `gaato/mooncakes_index/fs` reads the index directory (native, js, wasm).
+  `read` counts broken lines in `skipped` instead of failing, and reports when
+  `moon update` last fetched.
+
+Records are read-only; build them for tests with `VersionRecord::new`,
+`Dep::new` and `About::new`, whose optional arguments let the index grow new
+fields without breaking you.
+
+## License
+
+Apache-2.0

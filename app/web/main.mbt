@@ -657,7 +657,7 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
   let record = graph.current[i]
   let owner = graph.owners[i]
   let m = scene.metrics
-  let about = abouts.get(name).unwrap_or(@mooncakes_index.About::default())
+  let about = abouts.get(name).unwrap_or(@mooncakes_index.About::new())
   let day = fn(t : String?) {
     match t {
       Some(t) if t.length() >= 10 => Some(t.view(end_offset=10).to_owned())

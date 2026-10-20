@@ -5,15 +5,12 @@ fn rec(
   deps : Array[String],
   yanked~ : Bool = false,
 ) -> @mooncakes_index.VersionRecord {
-  {
+  @mooncakes_index.VersionRecord::new(
     name,
-    version,
-    deps: deps.map(d => { name: d, version: Some("0.1.0"), }),
-    created_at: None,
-    yanked,
-    deprecated: None,
-    about: @mooncakes_index.About::default(),
-  }
+    version~,
+    deps=deps.map(d => @mooncakes_index.Dep::new(d, version="0.1.0")),
+    yanked~,
+  )
 }
 
 ///|
@@ -80,14 +77,14 @@ test "transitive deps" {
 ///|
 test "asked versions and who is behind" {
   let dep = fn(name : String, version : String?) -> @mooncakes_index.Dep {
-    { name, version, }
+    @mooncakes_index.Dep::new(name, version?)
   }
   let r = fn(
     name : String,
     version : String,
     deps : Array[@mooncakes_index.Dep],
   ) -> @mooncakes_index.VersionRecord {
-    { ..rec(name, version, []), deps, }
+    @mooncakes_index.VersionRecord::new(name, version~, deps~)
   }
   let g = @graph.Graph::from_records([
     r("a/core", "0.2.0", []),

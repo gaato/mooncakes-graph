@@ -1,8 +1,8 @@
 ///|
 /// The index as read from disk.
-pub(all) struct Index {
-  /// Grouped by module, modules sorted by name, versions in publication order.
-  modules : Array[(String, Array[@mooncakes_index.VersionRecord])]
+pub struct Index {
+  /// Sorted by name (`@mooncakes_index.compare_names`).
+  modules : Array[@mooncakes_index.Module]
   /// Lines that could not be parsed and were skipped.
   skipped : Int32
   /// When `moon update` last moved the index (Unix seconds), if known.
@@ -10,14 +10,20 @@ pub(all) struct Index {
 }
 
 ///|
-/// The index directory has no `user/` tree, typically because `moon update`
-/// has never run.
-pub(all) suberror NotFound {
-  NotFound(String)
-} derive(Debug)
+/// An index that could not be read.
+pub(all) suberror IndexError {
+  /// `dir` has no `user/` tree, typically because `moon update` has never
+  /// run.
+  NotFound(dir~ : String)
+  /// A directory or file under the index could not be read.
+  Unreadable(path~ : String, message~ : String)
+} derive(Eq, Debug)
 
 ///|
-pub extend NotFound with @debug.Debug::{to_repr}
+pub extend IndexError with Eq::{equal, not_equal}
+
+///|
+pub extend IndexError with @debug.Debug::{to_repr}
 
 ///|
 /// `$MOON_HOME/registry/index`, with `MOON_HOME` defaulting to `$HOME/.moon`
@@ -37,21 +43,31 @@ pub fn index_dir() -> String? {
 ///|
 /// Reads `<dir>/user/<owner>/<name>.index`. Broken lines are counted in
 /// `skipped` instead of failing the whole read.
-pub fn read(dir : String) -> Index raise {
+pub fn read(dir : String) -> Index raise IndexError {
   if !@xfs.path_exists(dir + "/user") {
-    raise NotFound(dir)
+    raise NotFound(dir~)
+  }
+  let unreadable = fn(path : String, e : Error) -> IndexError {
+    Unreadable(path~, message=e.to_string())
   }
   let modules = []
   let mut skipped = 0
   let user = dir + "/user"
-  for owner in sorted(@xfs.read_dir(user)) {
+  let owners = @xfs.read_dir(user) catch { e => raise unreadable(user, e) }
+  for owner in sorted(owners) {
     let owner_dir = user + "/" + owner
-    if !@xfs.is_dir(owner_dir) {
+    if !(@xfs.is_dir(owner_dir) catch { _ => false }) {
       continue
     }
-    for file in sorted(@xfs.read_dir(owner_dir)) {
+    let files = @xfs.read_dir(owner_dir) catch {
+      e => raise unreadable(owner_dir, e)
+    }
+    for file in sorted(files) {
       guard file.has_suffix(".index") else { continue }
-      let text = @xfs.read_file_to_string(owner_dir + "/" + file)
+      let path = owner_dir + "/" + file
+      let text = @xfs.read_file_to_string(path) catch {
+        e => raise unreadable(path, e)
+      }
       let versions = []
       for line in text.split("\n") {
         let line = line.trim()
@@ -63,13 +79,13 @@ pub fn read(dir : String) -> Index raise {
         }
       }
       if versions.length() > 0 {
-        modules.push((versions[0].name, versions))
+        modules.push(@mooncakes_index.Module::new(versions[0].name, versions))
       }
     }
   }
   // Sort by the module name itself, not by path: `a-b/c` and `a/b` order
   // differently as paths and as names.
-  modules.sort_by((a, b) => @mooncakes_index.compare_names(a.0, b.0))
+  modules.sort_by((a, b) => @mooncakes_index.compare_names(a.name, b.name))
   { modules, skipped, fetched_at: fetched_at(dir), }
 }
 

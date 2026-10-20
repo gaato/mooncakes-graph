@@ -28,7 +28,7 @@ pub fn Graph::edge_count(Self) -> Int
 pub fn Graph::from_records(ArrayView[@mooncakes_index.VersionRecord]) -> Self
 pub fn Graph::mask(Self, ArrayView[String]) -> Array[Bool]
 pub fn Graph::metrics(Self, excluded? : Array[Bool]) -> Metrics
-pub fn Graph::new(ArrayView[(String, Array[@mooncakes_index.VersionRecord])]) -> Self
+pub fn Graph::new(ArrayView[@mooncakes_index.Module]) -> Self
 pub fn Graph::size(Self) -> Int
 pub fn Graph::transitive_dependents(Self, Int, excluded? : Array[Bool]) -> Array[Int]
 pub fn Graph::transitive_deps(Self, Int, excluded? : Array[Bool]) -> Array[Int]

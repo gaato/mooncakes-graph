@@ -6,7 +6,7 @@ test "parse an index line" {
   assert_eq(r.name, "moonbit-community/rabbita")
   assert_eq(r.version, "0.11.0")
   assert_eq(r.deps, [
-    { name: "moonbit-community/js-ffi", version: Some("0.4.2"), },
+    @mooncakes_index.Dep::new("moonbit-community/js-ffi", version="0.4.2"),
   ])
   assert_eq(r.created_at, Some("2026-02-11T07:20:01.468299+00:00"))
   assert_eq(r.yanked, false)
@@ -15,15 +15,24 @@ test "parse an index line" {
 }
 
 ///|
-test "object-form deps keep the name and an optional version" {
+test "object-form deps keep their version, import name and path" {
   let line =
-    #|{"name":"a/b","version":"0.1.0","deps":{"x/io":{"version":"0.2.6","alias":"io"},"x/local":{"path":"src/language"},"x/plain":"1.0.0"}}
+    #|{"name":"a/b","version":"0.1.0","deps":{"x/io":{"version":"0.2.6","alias":"io"},"x/local":{"path":"src/language"},"x/both":{"version":"0.1.0","path":"./both"},"x/plain":"1.0.0"}}
   let r = @mooncakes_index.parse_line(line)
   assert_eq(r.deps, [
-    { name: "x/io", version: Some("0.2.6"), },
-    { name: "x/local", version: None, },
-    { name: "x/plain", version: Some("1.0.0"), },
+    @mooncakes_index.Dep::new("x/io", version="0.2.6", imported_as="io"),
+    @mooncakes_index.Dep::new("x/local", path="src/language"),
+    @mooncakes_index.Dep::new("x/both", version="0.1.0", path="./both"),
+    @mooncakes_index.Dep::new("x/plain", version="1.0.0"),
   ])
+  // They round-trip through the natural JSONL, in the index's shape.
+  assert_eq(
+    r.to_json().stringify(),
+    (
+      #|{"name":"a/b","version":"0.1.0","created_at":null,"deps":{"x/io":{"version":"0.2.6","alias":"io"},"x/local":{"path":"src/language"},"x/both":{"version":"0.1.0","path":"./both"},"x/plain":"1.0.0"},"yanked":false}
+    ),
+  )
+  assert_eq(@mooncakes_index.parse_line(r.to_json().stringify()), r)
   // Missing yanked and created_at.
   assert_eq(r.yanked, false)
   assert_eq(r.created_at, None)
@@ -50,34 +59,38 @@ fn parse_error(line : String) -> @mooncakes_index.ParseError? {
 
 ///|
 test "broken lines raise" {
-  assert_true(parse_error("{") is Some(InvalidJson(_)))
-  assert_true(parse_error("[]") is Some(InvalidJson(_)))
-  assert_true(parse_error("{\"version\":\"1\"}") is Some(MissingField("name")))
-  assert_true(
-    parse_error("{\"name\":\"a/b\"}") is Some(MissingField("version")),
+  assert_true(parse_error("{") is Some(InvalidJson(..)))
+  assert_true(parse_error("[]") is Some(InvalidJson(..)))
+  assert_eq(
+    parse_error("{\"version\":\"1\"}"),
+    Some(MissingField(field="name")),
+  )
+  assert_eq(
+    parse_error("{\"name\":\"a/b\"}"),
+    Some(MissingField(field="version")),
   )
 }
 
 ///|
 test "natural JSONL round-trips" {
-  let r : @mooncakes_index.VersionRecord = {
-    name: "a/b",
-    version: "1.2.3",
-    deps: [
-      { name: "c/d", version: Some("0.1.0"), },
-      { name: "e/f", version: None, },
+  let r = @mooncakes_index.VersionRecord::new(
+    "a/b",
+    version="1.2.3",
+    deps=[
+      @mooncakes_index.Dep::new("c/d", version="0.1.0"),
+      @mooncakes_index.Dep::new("e/f"),
     ],
-    created_at: Some("2026-01-01T00:00:00+00:00"),
-    yanked: true,
-    deprecated: Some("use g/h"),
-    about: {
-      description: Some("A thing"),
-      repository: Some("https://example.com/a/b"),
-      license: Some("MIT"),
-      keywords: ["x", "y"],
-      yanked_reason: Some("broken"),
-    },
-  }
+    created_at="2026-01-01T00:00:00+00:00",
+    yanked=true,
+    deprecated="use g/h",
+    about=@mooncakes_index.About::new(
+      description="A thing",
+      repository="https://example.com/a/b",
+      license="MIT",
+      keywords=["x", "y"],
+      yanked_reason="broken",
+    ),
+  )
   let line = r.to_json().stringify()
   assert_eq(
     line,
@@ -87,13 +100,11 @@ test "natural JSONL round-trips" {
   )
   assert_eq(@mooncakes_index.parse_line(line), r)
   // `deprecated` and empty `About` fields are omitted; `created_at` is null.
-  let plain = {
-    ..r,
-    created_at: None,
-    deprecated: None,
-    deps: [],
-    about: @mooncakes_index.About::default(),
-  }
+  let plain = @mooncakes_index.VersionRecord::new(
+    "a/b",
+    version="1.2.3",
+    yanked=true,
+  )
   assert_eq(
     plain.to_json().stringify(),
     (
@@ -113,41 +124,32 @@ test "owner" {
 }
 
 ///|
-fn v(version : String, yanked : Bool) -> @mooncakes_index.VersionRecord {
-  {
-    name: "a/b",
-    version,
-    deps: [],
-    created_at: None,
-    yanked,
-    deprecated: None,
-    about: @mooncakes_index.About::default(),
-  }
+fn m(versions : Array[(String, Bool)]) -> @mooncakes_index.Module {
+  @mooncakes_index.Module::new(
+    "a/b",
+    versions.map(v => {
+      @mooncakes_index.VersionRecord::new("a/b", version=v.0, yanked=v.1)
+    }),
+  )
 }
 
 ///|
 test "current skips yanked versions" {
   assert_eq(
-    @mooncakes_index.current([
-      v("0.1.0", false),
-      v("0.2.0", false),
-      v("0.3.0", true),
-    ]).map(r => r.version),
+    m([("0.1.0", false), ("0.2.0", false), ("0.3.0", true)])
+    .current()
+    .map(r => r.version),
     Some("0.2.0"),
   )
   // Every version yanked: fall back to the last one.
   assert_eq(
-    @mooncakes_index.current([v("0.1.0", true), v("0.2.0", true)]).map(r => {
-      r.version
-    }),
+    m([("0.1.0", true), ("0.2.0", true)]).current().map(r => r.version),
     Some("0.2.0"),
   )
-  assert_eq(@mooncakes_index.current([]), None)
-  assert_true(@mooncakes_index.all_yanked([v("0.1.0", true), v("0.2.0", true)]))
-  assert_true(
-    !@mooncakes_index.all_yanked([v("0.1.0", true), v("0.2.0", false)]),
-  )
-  assert_true(!@mooncakes_index.all_yanked([]))
+  assert_eq(m([]).current(), None)
+  assert_true(m([("0.1.0", true), ("0.2.0", true)]).all_yanked())
+  assert_true(!m([("0.1.0", true), ("0.2.0", false)]).all_yanked())
+  assert_true(!m([]).all_yanked())
 }
 
 ///|
@@ -168,7 +170,7 @@ test "about fields: blanks read as absent, non-strings are skipped" {
       #|{"name":"a/b","version":"1.0.0","description":"  ","repository":"","license":null,"keywords":["k","",3],"yanked_reason":null}
     ),
   )
-  assert_eq(r.about, { ..@mooncakes_index.About::default(), keywords: ["k"], })
+  assert_eq(r.about, @mooncakes_index.About::new(keywords=["k"]))
 }
 
 ///|

@@ -6,13 +6,9 @@ import {
 }
 
 // Values
-pub fn all_yanked(ArrayView[VersionRecord]) -> Bool
-
 pub fn compare_names(String, String) -> Int
 
 pub fn compare_versions(String, String) -> Int
-
-pub fn current(ArrayView[VersionRecord]) -> VersionRecord?
 
 pub fn is_version(String) -> Bool
 
@@ -24,35 +20,51 @@ pub fn release_line(String) -> String?
 
 // Errors
 pub(all) suberror ParseError {
-  InvalidJson(String)
-  MissingField(String)
-} derive(@debug.Debug)
+  InvalidJson(message~ : String)
+  MissingField(field~ : String)
+} derive(Eq, @debug.Debug)
+pub fn ParseError::equal(Self, Self) -> Bool
+pub fn ParseError::not_equal(Self, Self) -> Bool
 pub fn ParseError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
-pub(all) struct About {
+pub struct About {
   description : String?
   repository : String?
   license : String?
   keywords : Array[String]
   yanked_reason : String?
-} derive(Default, Eq, @debug.Debug)
-pub fn About::default() -> Self
+} derive(Eq, @debug.Debug)
 pub fn About::equal(Self, Self) -> Bool
+pub fn About::new(description? : String, repository? : String, license? : String, keywords? : Array[String], yanked_reason? : String) -> Self
 pub fn About::not_equal(Self, Self) -> Bool
 pub fn About::to_json(Self) -> Json
 pub fn About::to_repr(Self) -> @debug.Repr
 pub impl ToJson for About
 
-pub(all) struct Dep {
+pub struct Dep {
   name : String
   version : String?
+  imported_as : String?
+  path : String?
 } derive(Eq, @debug.Debug)
 pub fn Dep::equal(Self, Self) -> Bool
+pub fn Dep::new(String, version? : String, imported_as? : String, path? : String) -> Self
 pub fn Dep::not_equal(Self, Self) -> Bool
 pub fn Dep::to_repr(Self) -> @debug.Repr
 
-pub(all) struct VersionRecord {
+pub struct Module {
+  name : String
+  versions : Array[VersionRecord]
+} derive(Eq, @debug.Debug)
+pub fn Module::all_yanked(Self) -> Bool
+pub fn Module::current(Self) -> VersionRecord?
+pub fn Module::equal(Self, Self) -> Bool
+pub fn Module::new(String, Array[VersionRecord]) -> Self
+pub fn Module::not_equal(Self, Self) -> Bool
+pub fn Module::to_repr(Self) -> @debug.Repr
+
+pub struct VersionRecord {
   name : String
   version : String
   deps : Array[Dep]
@@ -62,6 +74,7 @@ pub(all) struct VersionRecord {
   about : About
 } derive(Eq, @debug.Debug)
 pub fn VersionRecord::equal(Self, Self) -> Bool
+pub fn VersionRecord::new(String, version~ : String, deps? : Array[Dep], created_at? : String, yanked? : Bool, deprecated? : String, about? : About) -> Self
 pub fn VersionRecord::not_equal(Self, Self) -> Bool
 pub fn VersionRecord::to_json(Self) -> Json
 pub fn VersionRecord::to_repr(Self) -> @debug.Repr

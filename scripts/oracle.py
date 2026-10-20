@@ -47,9 +47,15 @@ def records():
         yield from versions
 
 
-def dep_version(v):
-    # Object form: {"version", "alias"?} or a local {"path"} with no version.
-    return v.get("version") if isinstance(v, dict) else v
+def dep(v):
+    # A plain version, or (with an alias or a path) the index's object form
+    # with only the string fields among version, alias and path.
+    if not isinstance(v, dict):
+        return v if isinstance(v, str) else None
+    fields = {k: v[k] for k in ("version", "alias", "path") if isinstance(v.get(k), str)}
+    if "alias" in fields or "path" in fields:
+        return fields
+    return fields.get("version")
 
 
 def natural(d):
@@ -57,7 +63,7 @@ def natural(d):
         "name": d["name"],
         "version": d["version"],
         "created_at": d.get("created_at"),
-        "deps": {k: dep_version(v) for k, v in (d.get("deps") or {}).items()},
+        "deps": {k: dep(v) for k, v in (d.get("deps") or {}).items()},
         "yanked": bool(d.get("yanked")),
     }
     if d.get("deprecated"):

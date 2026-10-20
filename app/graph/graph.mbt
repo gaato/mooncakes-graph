@@ -28,20 +28,18 @@ pub struct Graph {
 }
 
 ///|
-/// Builds the graph from modules grouped as the index stores them: each entry
-/// is a module name and its versions in publication order.
-pub fn Graph::new(
-  modules : ArrayView[(String, Array[@mooncakes_index.VersionRecord])],
-) -> Graph {
-  let sorted = modules.to_owned()
-  sorted.sort_by((a, b) => @mooncakes_index.compare_names(a.0, b.0))
-  let names = sorted.map(m => m.0)
+/// Builds the graph from modules as the index stores them. Modules without
+/// versions are left out.
+pub fn Graph::new(modules : ArrayView[@mooncakes_index.Module]) -> Graph {
+  let sorted = modules.iter().filter(m => !m.versions.is_empty()).collect()
+  sorted.sort_by((a, b) => @mooncakes_index.compare_names(a.name, b.name))
+  let names = sorted.map(m => m.name)
   let ids : Map[String, Int32] = Map([])
   for i, name in names {
     ids[name] = i
   }
-  let current = sorted.map(m => @mooncakes_index.current(m.1).unwrap())
-  let yanked = sorted.map(m => @mooncakes_index.all_yanked(m.1))
+  let current = sorted.map(m => m.current().unwrap())
+  let yanked = sorted.map(m => m.all_yanked())
   let deps = Array::makei(names.length(), _ => [])
   let dependents = Array::makei(names.length(), _ => [])
   let mut dangling = 0
@@ -67,7 +65,7 @@ pub fn Graph::new(
     ids,
     owners: names.map(n => @mooncakes_index.owner(n).to_owned()),
     current,
-    history: sorted.map(m => m.1),
+    history: sorted.map(m => m.versions),
     yanked,
     deps,
     dependents,
@@ -88,7 +86,7 @@ pub fn Graph::from_records(
       None => groups[record.name] = [record]
     }
   }
-  Graph::new(groups.to_array())
+  Graph::new(groups.to_array().map(g => @mooncakes_index.Module::new(g.0, g.1)))
 }
 
 ///|
