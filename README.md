@@ -20,7 +20,7 @@ authors' own.
 
 ```sh
 moon update
-moon run --target native mooncakes-graph/src/cmd/mooncakes-graph -- dependents OWNER/MODULE
+moonx gaato/mooncakes-graph/cmd/mooncakes-graph dependents OWNER/MODULE
 ```
 
 ```
@@ -31,14 +31,17 @@ owner/module
 3 modules (index as of <when moon update last ran>)
 ```
 
-| command | output |
-|---|---|
-| `dependents MODULE...` | What depends on MODULE, as a tree |
-| `deps MODULE...` | What MODULE depends on, as a tree |
-| `top [-n N] [--by direct\|transitive\|owners]` | A ranking, as TSV |
-| `versions`, `modules`, `stats` | The data the site serves |
+The commands and the library are described in
+[`mooncakes-graph/README.md`](mooncakes-graph/README.md).
 
-The trees take tree's `-L`, `--noreport` and `-J`. `--help` lists the rest.
+## Modules
+
+| directory | module | |
+|---|---|---|
+| `mooncakes-graph/` | [`gaato/mooncakes-graph`](https://mooncakes.io/docs/gaato/mooncakes-graph) | The graph, its metrics and the CLI |
+| `mooncakes_index/` | [`gaato/mooncakes_index`](https://mooncakes.io/docs/gaato/mooncakes_index) | A reader for the registry index |
+| `force/` | [`gaato/force`](https://mooncakes.io/docs/gaato/force) | A force-directed layout, used by the map |
+| `site/` | (not published) | The map |
 
 ## Building the site
 

@@ -26,6 +26,10 @@ run moon test --target native
 run moon test --target js
 run moon test --target wasm-gc -p gaato/force -p gaato/force/internal/quadtree -p gaato/mooncakes_index -p gaato/mooncakes-graph
 run scripts/release.sh check
+# The published CLI runs as linear-memory Wasm under moonx.
+run moon check --deny-warn --target wasm mooncakes-graph/src/cmd/mooncakes-graph
+run moon build --target wasm --release mooncakes-graph/src/cmd/mooncakes-graph
+wasm=_build/wasm/release/build/gaato/mooncakes-graph/cmd/mooncakes-graph/mooncakes-graph.wasm
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
@@ -58,6 +62,19 @@ name="dependents/deps draw like tree(1)"; check python3 -I scripts/tree_gate.py 
 "$cli" dependents gaato/http -J | python3 -I -c 'import json,sys; print(json.load(sys.stdin)[-1]["modules"])' >"$tmp/count"
 python3 -I scripts/oracle.py top transitive | awk -F'\t' '$1=="gaato/http"{print $3}' >"$tmp/oracle_count"
 name="dependents count equals transitive dependents"; check cmp -s "$tmp/count" "$tmp/oracle_count"
+
+# The Wasm build agrees with the native one, also inside the sandbox that
+# SKILL.md tells agents to set up.
+for args in "top -n 0 --by owners" "dependents gaato/http -J" "stats"; do
+  "$cli" $args >"$tmp/native_out"
+  moonrun "$wasm" $args >"$tmp/wasm_out"
+  name="wasm $args matches native"; check cmp -s "$tmp/native_out" "$tmp/wasm_out"
+done
+printf '{"env":{"from_host":["HOME","MOON_HOME"]},"fs":{"read":["%s"]}}\n' \
+  "${MOON_HOME:-$HOME/.moon}/registry/index" >"$tmp/policy.json"
+moonrun --policy "$tmp/policy.json" "$wasm" stats >"$tmp/sandboxed" 2>&1 || true
+"$cli" stats >"$tmp/native_out"
+name="wasm runs in the SKILL.md sandbox"; check cmp -s "$tmp/native_out" "$tmp/sandboxed"
 
 "$cli" stats | python3 -I -c 'import json,sys; d=json.load(sys.stdin); d.pop("index_fetched_at"); print(json.dumps(d, sort_keys=True))' >"$tmp/cli_stats"
 python3 -I scripts/oracle.py stats | python3 -I -c 'import json,sys; print(json.dumps(json.load(sys.stdin), sort_keys=True))' >"$tmp/oracle_stats"

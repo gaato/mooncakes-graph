@@ -19,7 +19,7 @@ cd "$(dirname "$0")/.."
 
 # Bottom-up: a module is listed after everything it imports. The site module
 # is `private = true` and never published.
-PUBLISH_MODULES=(mooncakes_index force)
+PUBLISH_MODULES=(mooncakes_index force mooncakes-graph)
 
 module_name() { sed -nE 's/^name = "(.*)"$/\1/p' "$1/moon.mod"; }
 module_version() { sed -nE 's/^version = "(.*)"$/\1/p' "$1/moon.mod"; }
@@ -64,6 +64,12 @@ case "$cmd" in
       sed -i -E "s|\"$name@[0-9][^\"]*\"|\"$name@$version\"|" "$mod"
     done
     echo "$name -> $version"; grep -l "$name@$version" */moon.mod | sed 's/^/  /'
+    # The skill pins the version agents run.
+    for skill in "$module"/src/cmd/*/SKILL.md; do
+      [ -f "$skill" ] || continue
+      sed -i -E "s|($name/cmd/[^@ ]+)@[0-9][^ ]*|\1@$version|g" "$skill"
+      echo "  $skill"
+    done
     changelog_release "$module" "$version"
     ;;
   check)

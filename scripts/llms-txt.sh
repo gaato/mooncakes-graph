@@ -7,6 +7,7 @@ cli=$1
 
 as_of=$("$cli" stats | sed -n 's/.*"index_fetched_at": "\([^"]*\)".*/\1/p')
 modules=$("$cli" stats | sed -n 's/.*"modules": \([0-9]*\).*/\1/p')
+cli_version=$(sed -nE 's/^version = "(.*)"$/\1/p' "$(dirname "$0")/../mooncakes-graph/moon.mod")
 
 cat <<TXT
 # mooncakes graph
@@ -28,7 +29,7 @@ module to each module its current version depends on.
 ## Data
 
 - [metrics.tsv](data/metrics.tsv): every module with how many modules depend on it. Columns: \`module\`, \`direct\` (modules whose current version depends on it), \`transitive\` (modules that depend on it directly or through others), \`owners\` (owners other than its own among the direct ones). Sorted by \`transitive\`.
-- [versions.jsonl](data/versions.jsonl): every published version, one JSON object per line: \`{"name", "version", "created_at", "deps": {module: version or null}, "yanked", "deprecated"?}\`, in publication order per module.
+- [versions.jsonl](data/versions.jsonl): every published version, one JSON object per line: \`{"name", "version", "created_at", "deps": {module: version, null, or {"version"?, "alias"?, "path"?}}, "yanked", "deprecated"?}\` (the object form only when the dependency has an import alias or a local path), in publication order per module.
 - [modules.jsonl](data/modules.jsonl): one line per module from its current version: \`name\`, \`version\`, and \`description\`, \`repository\`, \`license\`, \`keywords\`, \`yanked_reason\` when present.
 - [meta.json](data/meta.json): when the index was fetched, and counts of modules, versions and edges.
 
@@ -44,5 +45,6 @@ cat <<'TXT'
 ## Optional
 
 - [The map](./): `?m=owner/name` opens a module, for example [?m=moonbitlang/async](?m=moonbitlang/async).
-- [Source and command-line tool](https://github.com/gaato/mooncakes-graph): `mooncakes-graph dependents MODULE` and `deps MODULE` print trees like `tree(1)`, from a local `moon update`.
 TXT
+printf '%s\n' "- [Command-line tool](https://mooncakes.io/docs/gaato/mooncakes-graph): \`moonx gaato/mooncakes-graph/cmd/mooncakes-graph@${cli_version} dependents MODULE\` (or \`deps\`, \`top\`, \`stats\`) answers the same questions from a local \`moon update\`, offline."
+echo "- [Source](https://github.com/gaato/mooncakes-graph)"
