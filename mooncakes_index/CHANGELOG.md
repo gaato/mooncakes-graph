@@ -11,6 +11,9 @@ note.
 ### Changed
 
 - Depends on `moonbitlang/x` 0.5.6 (was 0.5.5). No API change.
+- **The README has sections and a compile-checked example.** It has Install,
+  Usage, Packages, Links and License sections, its example is type-checked
+  and run with the tests, and every public declaration has a doc comment.
 
 ## [0.1.0] - 2026-10-20
 

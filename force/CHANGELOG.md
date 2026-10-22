@@ -7,6 +7,12 @@ never does. Every breaking change is listed with a migration note.
 
 ## [Unreleased]
 
+### Changed
+
+- **The README has sections and compile-checked examples.** It has Install,
+  Usage and Links sections, its examples are type-checked and run with the
+  tests, and every public declaration has a doc comment.
+
 ## [0.1.0] - 2026-10-20
 
 ### Added

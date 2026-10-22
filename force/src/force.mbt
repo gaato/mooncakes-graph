@@ -15,9 +15,11 @@ pub(all) enum Values {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `Values`.
 pub extend Values with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `Values`, for debug output.
 pub extend Values with @debug.Debug::{to_repr}
 
 ///|
@@ -33,9 +35,11 @@ pub(all) suberror ForceError {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `ForceError`.
 pub extend ForceError with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `ForceError`, for debug output.
 pub extend ForceError with @debug.Debug::{to_repr}
 
 ///|

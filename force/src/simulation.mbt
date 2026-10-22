@@ -67,26 +67,31 @@ pub fn Simulation::new(
 }
 
 ///|
+/// The number of nodes, fixed when the simulation is made.
 pub fn Simulation::node_count(self : Simulation) -> Int32 {
   self.xs.length()
 }
 
 ///|
+/// Each node's x position, indexed by node.
 pub fn Simulation::xs(self : Simulation) -> ArrayView[Double] {
   self.xs[:]
 }
 
 ///|
+/// Each node's y position, indexed by node.
 pub fn Simulation::ys(self : Simulation) -> ArrayView[Double] {
   self.ys[:]
 }
 
 ///|
+/// Each node's x velocity, indexed by node.
 pub fn Simulation::vxs(self : Simulation) -> ArrayView[Double] {
   self.vxs[:]
 }
 
 ///|
+/// Each node's y velocity, indexed by node.
 pub fn Simulation::vys(self : Simulation) -> ArrayView[Double] {
   self.vys[:]
 }
@@ -128,26 +133,35 @@ pub fn Simulation::pin(
 }
 
 ///|
+/// Sets the current alpha, the strength forces apply at; 1 at the start.
+/// Set it back up to reheat a simulation after changing it.
 pub fn Simulation::set_alpha(self : Simulation, value : Double) -> Unit {
   self.alpha = value
 }
 
 ///|
+/// Sets the alpha below which a caller should stop ticking; 0.001 by
+/// default. `tick` itself does not stop there.
 pub fn Simulation::set_alpha_min(self : Simulation, value : Double) -> Unit {
   self.alpha_min = value
 }
 
 ///|
+/// Sets how fast alpha moves towards `alpha_target` on each tick, as a
+/// fraction of the gap; by default it reaches `alpha_min` in 300 ticks.
 pub fn Simulation::set_alpha_decay(self : Simulation, value : Double) -> Unit {
   self.alpha_decay = value
 }
 
 ///|
+/// Sets the alpha that each tick moves alpha towards; 0 by default.
 pub fn Simulation::set_alpha_target(self : Simulation, value : Double) -> Unit {
   self.alpha_target = value
 }
 
 ///|
+/// Sets the fraction of velocity lost on each tick, like friction; 0.4 by
+/// default.
 pub fn Simulation::set_velocity_decay(
   self : Simulation,
   value : Double,
@@ -168,6 +182,7 @@ pub fn Simulation::add_force(
 }
 
 ///|
+/// Removes every installed force; add them again to change one.
 pub fn Simulation::clear_forces(self : Simulation) -> Unit {
   self.forces.clear()
 }

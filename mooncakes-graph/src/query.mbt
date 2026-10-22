@@ -8,9 +8,11 @@ pub(all) enum Direction {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `Direction`.
 pub extend Direction with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `Direction`, for debug output.
 pub extend Direction with @debug.Debug::{to_repr}
 
 ///|
@@ -76,9 +78,11 @@ pub(all) enum Metric {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `Metric`.
 pub extend Metric with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `Metric`, for debug output.
 pub extend Metric with @debug.Debug::{to_repr}
 
 ///|
@@ -141,6 +145,7 @@ pub fn Graph::metrics(
 }
 
 ///|
+/// How many dependents node `node` has by `metric`.
 pub fn Metrics::get(self : Metrics, node : Int32, metric : Metric) -> Int32 {
   match metric {
     Direct => self.direct[node]

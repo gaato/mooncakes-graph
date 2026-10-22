@@ -26,6 +26,8 @@ run moon test --target native
 run moon test --target js
 run moon test --target wasm-gc -p gaato/force -p gaato/force/internal/quadtree -p gaato/mooncakes_index -p gaato/mooncakes-graph
 run scripts/release.sh check
+# Module README sections, published links and doc comments (shared across gaato repos).
+run moon run scripts/docs_audit.mbtx --self-test
 # The published CLI runs as linear-memory Wasm under moonx.
 run moon check --deny-warn --target wasm mooncakes-graph/src/cmd/mooncakes-graph
 run moon build --target wasm --release mooncakes-graph/src/cmd/mooncakes-graph

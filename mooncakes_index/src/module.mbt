@@ -7,9 +7,11 @@ pub struct Module {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `Module`.
 pub extend Module with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `Module`, for debug output.
 pub extend Module with @debug.Debug::{to_repr}
 
 ///|

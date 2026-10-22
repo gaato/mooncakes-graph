@@ -13,12 +13,16 @@ pub struct Dep {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `Dep`.
 pub extend Dep with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `Dep`, for debug output.
 pub extend Dep with @debug.Debug::{to_repr}
 
 ///|
+/// A dependency on module `name`, for tests and tools that build records;
+/// the optional fields are absent when omitted.
 pub fn Dep::new(
   name : String,
   version? : String,
@@ -41,12 +45,16 @@ pub struct About {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `About`.
 pub extend About with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `About`, for debug output.
 pub extend About with @debug.Debug::{to_repr}
 
 ///|
+/// What a version says about its module, for tests and tools that build
+/// records; every field is absent or empty when omitted.
 pub fn About::new(
   description? : String,
   repository? : String,
@@ -71,12 +79,16 @@ pub struct VersionRecord {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `VersionRecord`.
 pub extend VersionRecord with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `VersionRecord`, for debug output.
 pub extend VersionRecord with @debug.Debug::{to_repr}
 
 ///|
+/// One published version of module `name`, for tests and tools that build
+/// records: no dependencies, not yanked and nothing in `about` unless given.
 pub fn VersionRecord::new(
   name : String,
   version~ : String,
@@ -97,9 +109,11 @@ pub(all) suberror ParseError {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `ParseError`.
 pub extend ParseError with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `ParseError`, for debug output.
 pub extend ParseError with @debug.Debug::{to_repr}
 
 ///|
@@ -202,6 +216,7 @@ pub impl ToJson for About with fn to_json(self) {
 }
 
 ///|
+/// Exposes `to_json` as a method of `About`.
 pub extend About with ToJson::{to_json}
 
 ///|
@@ -266,6 +281,7 @@ pub fn owner(name : StringView) -> StringView {
 }
 
 ///|
+/// Exposes `to_json` as a method of `VersionRecord`.
 pub extend VersionRecord with ToJson::{to_json}
 
 ///|

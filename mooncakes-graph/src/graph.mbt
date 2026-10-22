@@ -119,6 +119,7 @@ pub fn Graph::find(self : Graph, name : StringView) -> Int32? {
 }
 
 ///|
+/// The module's full name, such as `moonbitlang/x`, of node `node`.
 pub fn Graph::name(self : Graph, node : Int32) -> String {
   self.names[node]
 }
@@ -186,9 +187,11 @@ pub struct Requirement {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `Requirement`.
 pub extend Requirement with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `Requirement`, for debug output.
 pub extend Requirement with @debug.Debug::{to_repr}
 
 ///|
@@ -278,12 +281,15 @@ pub struct Stats {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `Stats`.
 pub extend Stats with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `Stats`, for debug output.
 pub extend Stats with @debug.Debug::{to_repr}
 
 ///|
+/// Counts of the graph's modules, versions and dependencies.
 pub fn Graph::stats(self : Graph) -> Stats {
   {
     modules: self.size(),

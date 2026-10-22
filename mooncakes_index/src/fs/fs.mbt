@@ -20,9 +20,11 @@ pub(all) suberror IndexError {
 } derive(Eq, Debug)
 
 ///|
+/// Exposes `equal` and `not_equal` as methods of `IndexError`.
 pub extend IndexError with Eq::{equal, not_equal}
 
 ///|
+/// Exposes `to_repr` as a method of `IndexError`, for debug output.
 pub extend IndexError with @debug.Debug::{to_repr}
 
 ///|
