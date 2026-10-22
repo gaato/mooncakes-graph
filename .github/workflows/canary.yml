@@ -1,0 +1,19 @@
+name: Canary
+
+# The gates compare the CLI with a Python reader and with tree(1).
+
+on:
+  schedule:
+    # 06:37 JST, after gaato/moonbit-docker rebuilds the latest and nightly images.
+    - cron: "37 21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    uses: gaato/.github/.github/workflows/moonbit-canary.yml@main
+    with:
+      gates: scripts/gates.sh
+      setup: apt-get update && apt-get install -y --no-install-recommends python3 tree
