@@ -6,9 +6,9 @@ import {
 }
 
 // Values
-pub fn compare_names(String, String) -> Int
+pub fn compare_names(String, String) -> Int32
 
-pub fn compare_versions(String, String) -> Int
+pub fn compare_versions(String, String) -> Int32
 
 pub fn is_version(String) -> Bool
 

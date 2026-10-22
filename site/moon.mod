@@ -7,7 +7,7 @@ version = "0.1.0"
 private = true
 
 import {
-  "moonbit-community/rabbita@0.16.5",
+  "moonbit-community/rabbita@0.16.6",
   "moonbit-community/rui@0.3.6",
   "gaato/mooncakes_index@0.1.0",
   "gaato/mooncakes-graph@0.1.0",

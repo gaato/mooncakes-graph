@@ -8,9 +8,9 @@ import {
 // Values
 pub fn center(x? : Double, y? : Double, strength? : Double) -> Force
 
-pub fn collide(radius? : Values, strength? : Double, iterations? : Int) -> Force
+pub fn collide(radius? : Values, strength? : Double, iterations? : Int32) -> Force
 
-pub fn link(Array[(Int, Int)], distance? : Values, strength? : Values, iterations? : Int) -> Force
+pub fn link(Array[(Int32, Int32)], distance? : Values, strength? : Values, iterations? : Int32) -> Force
 
 pub fn many_body(strength? : Values, theta? : Double, distance_min? : Double, distance_max? : Double) -> Force
 
@@ -20,8 +20,8 @@ pub fn y(target? : Values, strength? : Values) -> Force
 
 // Errors
 pub(all) suberror ForceError {
-  LengthMismatch(setting~ : String, expected~ : Int, actual~ : Int)
-  NodeOutOfRange(node~ : Int, count~ : Int)
+  LengthMismatch(setting~ : String, expected~ : Int32, actual~ : Int32)
+  NodeOutOfRange(node~ : Int32, count~ : Int32)
   InvalidSetting(setting~ : String, value~ : Double)
 } derive(Eq, @debug.Debug)
 pub fn ForceError::equal(Self, Self) -> Bool
@@ -41,17 +41,17 @@ pub struct Simulation {
 }
 pub fn Simulation::add_force(Self, Force) -> Unit raise ForceError
 pub fn Simulation::clear_forces(Self) -> Unit
-pub fn Simulation::new(Int, seed? : UInt) -> Self raise ForceError
-pub fn Simulation::node_count(Self) -> Int
-pub fn Simulation::pin(Self, Int, x? : Double, y? : Double) -> Unit
+pub fn Simulation::new(Int32, seed? : UInt32) -> Self raise ForceError
+pub fn Simulation::node_count(Self) -> Int32
+pub fn Simulation::pin(Self, Int32, x? : Double, y? : Double) -> Unit
 pub fn Simulation::set_alpha(Self, Double) -> Unit
 pub fn Simulation::set_alpha_decay(Self, Double) -> Unit
 pub fn Simulation::set_alpha_min(Self, Double) -> Unit
 pub fn Simulation::set_alpha_target(Self, Double) -> Unit
-pub fn Simulation::set_position(Self, Int, x~ : Double, y~ : Double) -> Unit
-pub fn Simulation::set_velocity(Self, Int, vx~ : Double, vy~ : Double) -> Unit
+pub fn Simulation::set_position(Self, Int32, x~ : Double, y~ : Double) -> Unit
+pub fn Simulation::set_velocity(Self, Int32, vx~ : Double, vy~ : Double) -> Unit
 pub fn Simulation::set_velocity_decay(Self, Double) -> Unit
-pub fn Simulation::tick(Self, iterations? : Int) -> Unit
+pub fn Simulation::tick(Self, iterations? : Int32) -> Unit
 pub fn Simulation::vxs(Self) -> ArrayView[Double]
 pub fn Simulation::vys(Self) -> ArrayView[Double]
 pub fn Simulation::xs(Self) -> ArrayView[Double]

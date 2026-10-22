@@ -8,6 +8,10 @@ note.
 
 ## [Unreleased]
 
+### Changed
+
+- Depends on `moonbitlang/x` 0.5.6 (was 0.5.5). No API change.
+
 ## [0.1.0] - 2026-10-20
 
 ### Added

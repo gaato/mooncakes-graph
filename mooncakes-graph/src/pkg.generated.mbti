@@ -21,27 +21,27 @@ pub fn Direction::to_repr(Self) -> @debug.Repr
 
 pub struct Forest {
   roots : ArrayView[TreeNode]
-  modules : Int
+  modules : Int32
 }
 
 type Graph
-pub fn Graph::all_yanked(Self, Int) -> Bool
-pub fn Graph::current(Self, Int) -> @mooncakes_index.VersionRecord
-pub fn Graph::dependents(Self, Int) -> ArrayView[Int]
-pub fn Graph::deps(Self, Int) -> ArrayView[Int]
-pub fn Graph::find(Self, StringView) -> Int?
-pub fn Graph::forest(Self, ArrayView[Int], Direction, max_depth? : Int) -> Forest
+pub fn Graph::all_yanked(Self, Int32) -> Bool
+pub fn Graph::current(Self, Int32) -> @mooncakes_index.VersionRecord
+pub fn Graph::dependents(Self, Int32) -> ArrayView[Int32]
+pub fn Graph::deps(Self, Int32) -> ArrayView[Int32]
+pub fn Graph::find(Self, StringView) -> Int32?
+pub fn Graph::forest(Self, ArrayView[Int32], Direction, max_depth? : Int32) -> Forest
 pub fn Graph::from_records(ArrayView[@mooncakes_index.VersionRecord]) -> Self
-pub fn Graph::history(Self, Int) -> ArrayView[@mooncakes_index.VersionRecord]
-pub fn Graph::isolated(Self, Int, excluded? : (Int) -> Bool) -> Bool
-pub fn Graph::metrics(Self, excluded? : (Int) -> Bool) -> Metrics
-pub fn Graph::name(Self, Int) -> String
+pub fn Graph::history(Self, Int32) -> ArrayView[@mooncakes_index.VersionRecord]
+pub fn Graph::isolated(Self, Int32, excluded? : (Int32) -> Bool) -> Bool
+pub fn Graph::metrics(Self, excluded? : (Int32) -> Bool) -> Metrics
+pub fn Graph::name(Self, Int32) -> String
 pub fn Graph::new(ArrayView[@mooncakes_index.Module]) -> Self
-pub fn Graph::owner(Self, Int) -> String
-pub fn Graph::reachable(Self, Int, Direction, excluded? : (Int) -> Bool) -> Array[Int]
-pub fn Graph::requirement(Self, dependent~ : Int, dependency~ : Int) -> Requirement?
-pub fn Graph::requirements(Self, Int) -> Array[Requirement]
-pub fn Graph::size(Self) -> Int
+pub fn Graph::owner(Self, Int32) -> String
+pub fn Graph::reachable(Self, Int32, Direction, excluded? : (Int32) -> Bool) -> Array[Int32]
+pub fn Graph::requirement(Self, dependent~ : Int32, dependency~ : Int32) -> Requirement?
+pub fn Graph::requirements(Self, Int32) -> Array[Requirement]
+pub fn Graph::size(Self) -> Int32
 pub fn Graph::stats(Self) -> Stats
 
 pub(all) enum Metric {
@@ -54,12 +54,12 @@ pub fn Metric::not_equal(Self, Self) -> Bool
 pub fn Metric::to_repr(Self) -> @debug.Repr
 
 type Metrics
-pub fn Metrics::get(Self, Int, Metric) -> Int
-pub fn Metrics::ranking(Self, Metric, among? : ArrayView[Int]) -> Array[Int]
+pub fn Metrics::get(Self, Int32, Metric) -> Int32
+pub fn Metrics::ranking(Self, Metric, among? : ArrayView[Int32]) -> Array[Int32]
 
 pub struct Requirement {
   name : String
-  node : Int?
+  node : Int32?
   asked : String?
   behind : Bool
   yanked : Bool
@@ -69,19 +69,19 @@ pub fn Requirement::not_equal(Self, Self) -> Bool
 pub fn Requirement::to_repr(Self) -> @debug.Repr
 
 pub struct Stats {
-  modules : Int
-  versions : Int
-  modules_with_deps : Int
-  edges : Int
-  dangling_edges : Int
-  all_yanked : Int
+  modules : Int32
+  versions : Int32
+  modules_with_deps : Int32
+  edges : Int32
+  dangling_edges : Int32
+  all_yanked : Int32
 } derive(Eq, @debug.Debug)
 pub fn Stats::equal(Self, Self) -> Bool
 pub fn Stats::not_equal(Self, Self) -> Bool
 pub fn Stats::to_repr(Self) -> @debug.Repr
 
 pub struct TreeNode {
-  node : Int
+  node : Int32
   children : ArrayView[TreeNode]
   duplicate : Bool
   truncated : Bool

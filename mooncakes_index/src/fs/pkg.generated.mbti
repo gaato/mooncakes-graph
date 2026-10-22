@@ -23,7 +23,7 @@ pub fn IndexError::to_repr(Self) -> @debug.Repr
 // Types and methods
 pub struct Index {
   modules : Array[@mooncakes_index.Module]
-  skipped : Int
+  skipped : Int32
   fetched_at : Int64?
 }
 

@@ -16,15 +16,15 @@ pub struct Quad {
   mut cx : Double
   mut cy : Double
   mut max_weight : Double
-  mut head : Int
+  mut head : Int32
   // private fields
 }
 
 pub struct Tree {
   // private fields
 }
-pub fn Tree::find(Self, Double, Double, radius? : Double) -> Int?
-pub fn Tree::next(Self, Int) -> Int
+pub fn Tree::find(Self, Double, Double, radius? : Double) -> Int32?
+pub fn Tree::next(Self, Int32) -> Int32
 pub fn Tree::rebuild(Self, Array[Double], Array[Double], weights? : Array[Double]) -> Unit
 pub fn Tree::visit(Self, (Quad) -> Bool) -> Unit
 
