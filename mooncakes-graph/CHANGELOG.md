@@ -8,8 +8,11 @@ note.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-24
+
 ### Changed
 
+- Depends on `cli/core` 0.7.0 (was 0.6.0). No public API change.
 - Depends on `moonbitlang/x` 0.5.6 (was 0.5.5). No API change.
 - **The README has sections and a compile-checked example.** Install covers
   both `moon add` and `moon install` for the command-line tool, the library

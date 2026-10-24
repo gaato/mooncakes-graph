@@ -1,18 +1,18 @@
 ---
 name: mooncakes-graph
-description: Find what depends on a mooncakes.io (MoonBit registry) module, what a module depends on, and which modules the ecosystem depends on the most, with moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.0 over the local registry index. Use before changing, renaming or yanking a published MoonBit module, when choosing between modules, or to rank the most depended-on ones. Needs `moon update` to have fetched the index.
+description: Find what depends on a mooncakes.io (MoonBit registry) module, what a module depends on, and which modules the ecosystem depends on the most, with moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.1 over the local registry index. Use before changing, renaming or yanking a published MoonBit module, when choosing between modules, or to rank the most depended-on ones. Needs `moon update` to have fetched the index.
 ---
 
 # MoonBit registry dependency graph
 
-Run `moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.0 <command>`. It reads the registry index that `moon update` keeps at `$MOON_HOME/registry/index` (default `~/.moon/registry/index`); if the CLI says there is no index, or the user needs today's registry, run `moon update` first. Each command reads the whole index, which takes a few seconds, so prefer one call with `-J` over many small ones.
+Run `moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.1 <command>`. It reads the registry index that `moon update` keeps at `$MOON_HOME/registry/index` (default `~/.moon/registry/index`); if the CLI says there is no index, or the user needs today's registry, run `moon update` first. Each command reads the whole index, which takes a few seconds, so prefer one call with `-J` over many small ones.
 
 ```sh
-moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.0 dependents gaato/http
-moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.0 dependents moonbitlang/x -L 1 --noreport
-moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.0 deps mizchi/bit -J
-moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.0 top -n 20 --by owners
-moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.0 stats
+moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.1 dependents gaato/http
+moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.1 dependents moonbitlang/x -L 1 --noreport
+moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.1 deps mizchi/bit -J
+moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.1 top -n 20 --by owners
+moonx gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.1 stats
 ```
 
 ## What it counts
@@ -43,7 +43,7 @@ The CLI needs to read the index and nothing else: no network and no writes. moon
 printf '{"env":{"from_host":["HOME","MOON_HOME"]},"fs":{"read":["%s"]}}\n' \
   "${MOON_HOME:-$HOME/.moon}/registry/index" > mooncakes-graph-policy.json
 moonx --experimental-policy mooncakes-graph-policy.json \
-  gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.0 stats
+  gaato/mooncakes-graph/cmd/mooncakes-graph@0.1.1 stats
 ```
 
 Alternatively, pass `--index <absolute path>` and drop the `env` part of the policy.
