@@ -11,10 +11,11 @@ import {
 // Errors
 
 // Types and methods
+#derive(Eq, @debug.Debug)
 pub(all) enum Direction {
   Dependents
   Deps
-} derive(Eq, @debug.Debug)
+}
 pub fn Direction::equal(Self, Self) -> Bool
 pub fn Direction::not_equal(Self, Self) -> Bool
 pub fn Direction::to_repr(Self) -> @debug.Repr
@@ -44,11 +45,12 @@ pub fn Graph::requirements(Self, Int32) -> Array[Requirement]
 pub fn Graph::size(Self) -> Int32
 pub fn Graph::stats(Self) -> Stats
 
+#derive(Eq, @debug.Debug)
 pub(all) enum Metric {
   Direct
   Transitive
   Owners
-} derive(Eq, @debug.Debug)
+}
 pub fn Metric::equal(Self, Self) -> Bool
 pub fn Metric::not_equal(Self, Self) -> Bool
 pub fn Metric::to_repr(Self) -> @debug.Repr
@@ -57,17 +59,19 @@ type Metrics
 pub fn Metrics::get(Self, Int32, Metric) -> Int32
 pub fn Metrics::ranking(Self, Metric, among? : ArrayView[Int32]) -> Array[Int32]
 
+#derive(Eq, @debug.Debug)
 pub struct Requirement {
   name : String
   node : Int32?
   asked : String?
   behind : Bool
   yanked : Bool
-} derive(Eq, @debug.Debug)
+}
 pub fn Requirement::equal(Self, Self) -> Bool
 pub fn Requirement::not_equal(Self, Self) -> Bool
 pub fn Requirement::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug)
 pub struct Stats {
   modules : Int32
   versions : Int32
@@ -75,7 +79,7 @@ pub struct Stats {
   edges : Int32
   dangling_edges : Int32
   all_yanked : Int32
-} derive(Eq, @debug.Debug)
+}
 pub fn Stats::equal(Self, Self) -> Bool
 pub fn Stats::not_equal(Self, Self) -> Bool
 pub fn Stats::to_repr(Self) -> @debug.Repr

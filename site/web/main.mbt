@@ -45,12 +45,13 @@ extern "js" fn console_warn(s : String) -> Unit = "(s) => console.warn(s)"
 ///|
 /// The `modules` data (descriptions, repositories, ...), fetched the first
 /// time a module is selected.
+#derive(Eq)
 enum AboutStatus {
   Idle
   Fetching
   Fetched
   Unavailable
-} derive(Eq)
+}
 
 ///|
 let abouts : Map[String, @mooncakes_index.About] = Map([])
@@ -100,13 +101,15 @@ fn host_of(url : String) -> String {
 }
 
 ///|
+#derive(Eq)
 enum Status {
   Loading
   Ready
   Failed(String)
-} derive(Eq)
+}
 
 ///|
+#derive(Eq)
 struct Model {
   status : Status
   show_yanked : Bool
@@ -120,7 +123,7 @@ struct Model {
   /// scene re-render.
   revision : Int32
   about : AboutStatus
-} derive(Eq)
+}
 
 ///|
 enum Msg {
@@ -642,7 +645,8 @@ fn detail_view(emit : Emit[Msg], name : String) -> Html {
   let about = abouts.get(name).unwrap_or(@mooncakes_index.About::new())
   let day = fn(t : String?) {
     match t {
-      Some(t) if t.length() >= 10 => Some(t.view(end_offset=10).to_owned())
+      Some(t) if t.length() >= 10 =>
+        Some(t.clamped_view(start=0, end=10).to_owned())
       _ => None
     }
   }

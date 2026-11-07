@@ -7,12 +7,13 @@
 ///   let _ = @force.x(target=Each([0, 100, 200]))
 /// }
 /// ```
+#derive(Eq, Debug)
 pub(all) enum Values {
   /// The same value for every node or link.
   All(Double)
   /// One value per node (or per link, for `link`), in index order.
   Each(Array[Double])
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `Values`.
@@ -24,6 +25,7 @@ pub extend Values with @debug.Debug::{to_repr}
 
 ///|
 /// A force that `Simulation::add_force` refused.
+#derive(Eq, Debug)
 pub(all) suberror ForceError {
   /// An `Each` setting or a node count does not fit: `setting` names the
   /// argument (such as `"strength"` or `"radius"`).
@@ -32,7 +34,7 @@ pub(all) suberror ForceError {
   NodeOutOfRange(node~ : Int32, count~ : Int32)
   /// A setting is out of its range, such as a negative radius or count.
   InvalidSetting(setting~ : String, value~ : Double)
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `ForceError`.

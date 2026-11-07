@@ -11,13 +11,14 @@ pub struct Index {
 
 ///|
 /// An index that could not be read.
+#derive(Eq, Debug)
 pub(all) suberror IndexError {
   /// `dir` has no `user/` tree, typically because `moon update` has never
   /// run.
   NotFound(dir~ : String)
   /// A directory or file under the index could not be read.
   Unreadable(path~ : String, message~ : String)
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `IndexError`.

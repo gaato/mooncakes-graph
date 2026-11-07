@@ -19,11 +19,12 @@ pub fn x(target? : Values, strength? : Values) -> Force
 pub fn y(target? : Values, strength? : Values) -> Force
 
 // Errors
+#derive(Eq, @debug.Debug)
 pub(all) suberror ForceError {
   LengthMismatch(setting~ : String, expected~ : Int32, actual~ : Int32)
   NodeOutOfRange(node~ : Int32, count~ : Int32)
   InvalidSetting(setting~ : String, value~ : Double)
-} derive(Eq, @debug.Debug)
+}
 pub fn ForceError::equal(Self, Self) -> Bool
 pub fn ForceError::not_equal(Self, Self) -> Bool
 pub fn ForceError::to_repr(Self) -> @debug.Repr
@@ -57,10 +58,11 @@ pub fn Simulation::vys(Self) -> ArrayView[Double]
 pub fn Simulation::xs(Self) -> ArrayView[Double]
 pub fn Simulation::ys(Self) -> ArrayView[Double]
 
+#derive(Eq, @debug.Debug)
 pub(all) enum Values {
   All(Double)
   Each(Array[Double])
-} derive(Eq, @debug.Debug)
+}
 pub fn Values::equal(Self, Self) -> Bool
 pub fn Values::not_equal(Self, Self) -> Bool
 pub fn Values::to_repr(Self) -> @debug.Repr

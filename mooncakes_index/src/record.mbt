@@ -3,6 +3,7 @@
 ///
 /// Most are `"name": "version"`. Some name a local `path` (with or without a
 /// version) or import the module under another name (`alias` in the index).
+#derive(Eq, Debug)
 pub struct Dep {
   name : String
   /// `None` for a local path dependency published without a version.
@@ -10,7 +11,7 @@ pub struct Dep {
   /// The name the module is imported as, when not its own.
   imported_as : String?
   path : String?
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `Dep`.
@@ -35,6 +36,7 @@ pub fn Dep::new(
 ///|
 /// What a version says about its module, from its `moon.mod`. Every field is
 /// optional in the index.
+#derive(Eq, Debug)
 pub struct About {
   description : String?
   repository : String?
@@ -42,7 +44,7 @@ pub struct About {
   keywords : Array[String]
   /// Why the version was yanked, when it was and the owner said.
   yanked_reason : String?
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `About`.
@@ -67,6 +69,7 @@ pub fn About::new(
 
 ///|
 /// One line of the index: one published version of one module.
+#derive(Eq, Debug)
 pub struct VersionRecord {
   name : String
   version : String
@@ -76,7 +79,7 @@ pub struct VersionRecord {
   yanked : Bool
   deprecated : String?
   about : About
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `VersionRecord`.
@@ -103,10 +106,11 @@ pub fn VersionRecord::new(
 
 ///|
 /// A line that is not a version record.
+#derive(Eq, Debug)
 pub(all) suberror ParseError {
   InvalidJson(message~ : String)
   MissingField(field~ : String)
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `ParseError`.

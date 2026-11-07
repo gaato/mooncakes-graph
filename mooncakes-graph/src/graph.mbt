@@ -169,6 +169,7 @@ pub fn Graph::dependents(self : Graph, node : Int32) -> ArrayView[Int32] {
 
 ///|
 /// One dependency of a module's current version, as it asks for it.
+#derive(Eq, Debug)
 pub struct Requirement {
   /// The module asked for.
   name : String
@@ -184,7 +185,7 @@ pub struct Requirement {
   /// The version asked for was yanked, while the module itself still has
   /// versions that are not (a module yanked as a whole says so itself).
   yanked : Bool
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `Requirement`.
@@ -266,6 +267,7 @@ pub fn Graph::requirement(
 
 ///|
 /// The registry at a glance.
+#derive(Eq, Debug)
 pub struct Stats {
   modules : Int32
   /// Every published version of those modules.
@@ -278,7 +280,7 @@ pub struct Stats {
   dangling_edges : Int32
   /// Modules whose every version is yanked.
   all_yanked : Int32
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `Stats`.

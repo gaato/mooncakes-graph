@@ -1,11 +1,12 @@
 ///|
 /// Which way to follow dependencies.
+#derive(Eq, Debug)
 pub(all) enum Direction {
   /// From a module to what depends on it.
   Dependents
   /// From a module to what it depends on.
   Deps
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `Direction`.
@@ -68,6 +69,7 @@ pub fn Graph::isolated(
 
 ///|
 /// A way to count how much a module is depended on.
+#derive(Eq, Debug)
 pub(all) enum Metric {
   /// Modules whose current version lists it.
   Direct
@@ -75,7 +77,7 @@ pub(all) enum Metric {
   Transitive
   /// Distinct owners, other than its own, among its direct dependents.
   Owners
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `Metric`.

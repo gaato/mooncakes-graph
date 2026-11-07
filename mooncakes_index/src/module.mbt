@@ -1,10 +1,11 @@
 ///|
 /// A module and every version it has published, in publication order (the
 /// order of the lines in the index).
+#derive(Eq, Debug)
 pub struct Module {
   name : String
   versions : Array[VersionRecord]
-} derive(Eq, Debug)
+}
 
 ///|
 /// Exposes `equal` and `not_equal` as methods of `Module`.
