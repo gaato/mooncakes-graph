@@ -49,7 +49,7 @@ fn main {
     }
   }
   if code != 0 {
-    @sys.exit(code)
+    @env.exit(code)
   }
 }
 

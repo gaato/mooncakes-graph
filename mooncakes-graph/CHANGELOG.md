@@ -8,6 +8,11 @@ note.
 
 ## [Unreleased]
 
+### Changed
+
+- The command exits through core `@env.exit`, so the module no longer
+  depends on `moonbitlang/x`. Output and exit codes are unchanged.
+
 ## [0.1.1] - 2026-10-24
 
 ### Changed
