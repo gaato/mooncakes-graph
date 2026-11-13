@@ -45,22 +45,32 @@ pub extend ForceError with Eq::{equal, not_equal}
 pub extend ForceError with @debug.Debug::{to_repr}
 
 ///|
+/// The settings of a link force. Kept in a struct so that `Force` stays short
+/// enough for formatters before and after MoonBit 0.10.20, which disagree on
+/// a trailing comma, to agree on its layout.
+priv struct LinkConfig {
+  edges : Array[(Int32, Int32)]
+  distance : Values
+  strength : Values?
+  iterations : Int32
+}
+
+///|
+/// The settings of a many-body force; see `LinkConfig`.
+priv struct ManyBodyConfig {
+  strength : Values
+  theta : Double
+  distance_min : Double
+  distance_max : Double
+}
+
+///|
 /// A force, as configured. Build one with `link`, `many_body`, `center`,
 /// `collide`, `x` or `y`, and install it with `Simulation::add_force`, which
 /// checks it against the simulation.
 enum Force {
-  Link(
-    edges~ : Array[(Int32, Int32)],
-    distance~ : Values,
-    strength~ : Values?,
-    iterations~ : Int32
-  )
-  ManyBody(
-    strength~ : Values,
-    theta~ : Double,
-    distance_min~ : Double,
-    distance_max~ : Double
-  )
+  Link(LinkConfig)
+  ManyBody(ManyBodyConfig)
   Center(x~ : Double, y~ : Double, strength~ : Double)
   Collide(radius~ : Values, strength~ : Double, iterations~ : Int32)
   Position(horizontal~ : Bool, target~ : Values, strength~ : Values)
@@ -77,12 +87,12 @@ pub fn link(
   strength? : Values,
   iterations~ : Int32 = 1,
 ) -> Force {
-  Link(
-    edges=edges.copy(),
-    distance=distance.copy(),
-    strength=strength.map(Values::copy),
-    iterations~,
-  )
+  Link({
+    edges: edges.copy(),
+    distance: distance.copy(),
+    strength: strength.map(Values::copy),
+    iterations,
+  })
 }
 
 ///|
@@ -94,7 +104,7 @@ pub fn many_body(
   distance_min~ : Double = 1,
   distance_max~ : Double = @double.infinity,
 ) -> Force {
-  ManyBody(strength=strength.copy(), theta~, distance_min~, distance_max~)
+  ManyBody({ strength: strength.copy(), theta, distance_min, distance_max, })
 }
 
 ///|
@@ -162,26 +172,38 @@ fn Values::resolve(
 /// A force ready to apply to a simulation of a given size: every setting is
 /// one value per node or link.
 priv enum Installed {
-  Link(
-    edges~ : Array[(Int32, Int32)],
-    distances~ : Array[Double],
-    strengths~ : Array[Double],
-    bias~ : Array[Double],
-    iterations~ : Int32
-  )
-  ManyBody(
-    strengths~ : Array[Double],
-    theta~ : Double,
-    distance_min~ : Double,
-    distance_max~ : Double
-  )
+  Link(LinkInstalled)
+  ManyBody(ManyBodyInstalled)
   Center(x~ : Double, y~ : Double, strength~ : Double)
   Collide(radii~ : Array[Double], strength~ : Double, iterations~ : Int32)
-  Position(
-    horizontal~ : Bool,
-    targets~ : Array[Double],
-    strengths~ : Array[Double]
-  )
+  Position(PositionInstalled)
+}
+
+///|
+/// `LinkConfig` with every setting resolved to one value per link.
+priv struct LinkInstalled {
+  edges : Array[(Int32, Int32)]
+  distances : Array[Double]
+  strengths : Array[Double]
+  bias : Array[Double]
+  iterations : Int32
+}
+
+///|
+/// `ManyBodyConfig` with the strength resolved to one value per node.
+priv struct ManyBodyInstalled {
+  strengths : Array[Double]
+  theta : Double
+  distance_min : Double
+  distance_max : Double
+}
+
+///|
+/// A position force with its settings resolved to one value per node.
+priv struct PositionInstalled {
+  horizontal : Bool
+  targets : Array[Double]
+  strengths : Array[Double]
 }
 
 ///|
@@ -193,7 +215,7 @@ fn Force::install(self : Force, n : Int32) -> Installed raise ForceError {
     }
   }
   match self {
-    Link(edges~, distance~, strength~, iterations~) => {
+    Link({ edges, distance, strength, iterations, }) => {
       count("iterations", iterations)
       for edge in edges {
         let (s, t) = edge
@@ -212,23 +234,23 @@ fn Force::install(self : Force, n : Int32) -> Installed raise ForceError {
         Some(values) => values.resolve("strength", edges.length())
         None => edges.map(e => 1.0 / degrees[e.0].min(degrees[e.1]).to_double())
       }
-      Link(
-        edges~,
-        distances=distance.resolve("distance", edges.length()),
-        strengths~,
-        bias=edges.map(e => {
+      Link({
+        edges,
+        distances: distance.resolve("distance", edges.length()),
+        strengths,
+        bias: edges.map(e => {
           degrees[e.0].to_double() / (degrees[e.0] + degrees[e.1]).to_double()
         }),
-        iterations~,
-      )
+        iterations,
+      })
     }
-    ManyBody(strength~, theta~, distance_min~, distance_max~) =>
-      ManyBody(
-        strengths=strength.resolve("strength", n),
-        theta~,
-        distance_min~,
-        distance_max~,
-      )
+    ManyBody({ strength, theta, distance_min, distance_max, }) =>
+      ManyBody({
+        strengths: strength.resolve("strength", n),
+        theta,
+        distance_min,
+        distance_max,
+      })
     Center(x~, y~, strength~) => Center(x~, y~, strength~)
     Collide(radius~, strength~, iterations~) => {
       count("iterations", iterations)
@@ -239,10 +261,10 @@ fn Force::install(self : Force, n : Int32) -> Installed raise ForceError {
       Collide(radii~, strength~, iterations~)
     }
     Position(horizontal~, target~, strength~) =>
-      Position(
-        horizontal~,
-        targets=target.resolve("target", n),
-        strengths=strength.resolve("strength", n),
-      )
+      Position({
+        horizontal,
+        targets: target.resolve("target", n),
+        strengths: strength.resolve("strength", n),
+      })
   }
 }

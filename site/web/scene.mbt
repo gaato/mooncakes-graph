@@ -175,7 +175,7 @@ fn rebuild() -> Unit {
     } else {
       metrics.get(i, Transitive)
     }
-    let r = 2.5 + 1.6 * Double::from_int(t).sqrt()
+    let r = 2.5 + 1.6 * t.to_double().sqrt()
     if r > 40.0 {
       40.0
     } else {

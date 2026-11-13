@@ -195,14 +195,14 @@ pub fn Simulation::tick(self : Simulation, iterations~ : Int32 = 1) -> Unit {
     self.alpha += (self.alpha_target - self.alpha) * self.alpha_decay
     for force in self.forces {
       match force {
-        Link(edges~, distances~, strengths~, bias~, iterations~) =>
+        Link({ edges, distances, strengths, bias, iterations, }) =>
           self.apply_link(edges, distances, strengths, bias, iterations)
-        ManyBody(strengths~, theta~, distance_min~, distance_max~) =>
+        ManyBody({ strengths, theta, distance_min, distance_max, }) =>
           self.apply_many_body(strengths, theta, distance_min, distance_max)
         Center(x~, y~, strength~) => self.apply_center(x, y, strength)
         Collide(radii~, strength~, iterations~) =>
           self.apply_collide(radii, strength, iterations)
-        Position(horizontal~, targets~, strengths~) =>
+        Position({ horizontal, targets, strengths, }) =>
           self.apply_position(horizontal, targets, strengths)
       }
     }

@@ -268,8 +268,7 @@ fn draw() -> Unit {
     } else {
       // Bigger first; between equal sizes (capped hubs), the more
       // depended-on.
-      scene.radius[i] * 1.0e5 +
-      Double::from_int(current_metrics().get(i, Transitive))
+      scene.radius[i] * 1.0e5 + current_metrics().get(i, Transitive).to_double()
     }
   }
   candidates.sort_by((a, b) => rank(b).compare(rank(a)))
