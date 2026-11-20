@@ -4,7 +4,7 @@ version = "0.1.1"
 
 import {
   "gaato/mooncakes_index@0.1.0",
-  "cli/core@0.7.0",
+  "cli/core@0.11.0",
 }
 
 readme = "README.md"

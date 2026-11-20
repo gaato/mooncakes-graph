@@ -10,6 +10,8 @@ note.
 
 ### Changed
 
+- The command now uses `cli/core` 0.11.0 for argument parsing on native and
+  Wasm.
 - The command exits through core `@env.exit`, so the module no longer
   depends on `moonbitlang/x`. Output and exit codes are unchanged.
 

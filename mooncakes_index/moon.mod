@@ -3,7 +3,7 @@ name = "gaato/mooncakes_index"
 version = "0.1.0"
 
 import {
-  "moonbitlang/x@0.5.6",
+  "moonbitlang/x@0.5.8",
 }
 
 readme = "README.md"
