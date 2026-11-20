@@ -11,10 +11,23 @@ as an interactive map: https://gaato.github.io/mooncakes-graph/
 
 ## Install
 
-As a library:
+As a library, with `gaato/mooncakes_index` for the records it reads:
 
 ```sh
 moon add gaato/mooncakes-graph
+moon add gaato/mooncakes_index
+```
+
+The module's name has a hyphen, so import it under an alias, as the examples
+below use it:
+
+```mbt nocheck
+///|
+import {
+  "gaato/mooncakes-graph" @graph,
+  "gaato/mooncakes_index",
+  "gaato/mooncakes_index/fs",
+}
 ```
 
 The command-line tool runs with `moonx` without installing (see Run below), or
@@ -30,7 +43,7 @@ Fetch the index with `moon update`, then ask what depends on a module:
 
 ```sh
 moon update
-moonx gaato/mooncakes-graph/cmd/mooncakes-graph dependents gaato/http
+moonx gaato/mooncakes-graph/cmd/mooncakes-graph dependents moonbitlang/x
 ```
 
 | command | output |

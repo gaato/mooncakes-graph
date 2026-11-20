@@ -13,6 +13,13 @@ note.
 - The command exits through core `@env.exit`, so the module no longer
   depends on `moonbitlang/x`. Output and exit codes are unchanged.
 
+### Fixed
+
+- **The README says how to import the library**: under an alias such as
+  `@graph`, since the module's name has a hyphen, with `gaato/mooncakes_index`
+  added for the records it reads. The CLI example asks about a module that is
+  not deprecated.
+
 ## [0.1.1] - 2026-10-24
 
 ### Changed

@@ -13,6 +13,11 @@ never does. Every breaking change is listed with a migration note.
   Usage and Links sections, its examples are type-checked and run with the
   tests, and every public declaration has a doc comment.
 
+### Fixed
+
+- **The README says where the seed is given**: `Simulation::new(n, seed=s)`,
+  1 by default.
+
 ## [0.1.0] - 2026-10-20
 
 ### Added

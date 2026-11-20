@@ -3,7 +3,8 @@
 A force-directed graph layout for MoonBit, following
 [d3-force](https://github.com/d3/d3-force). Nodes are indices `0..<n` and
 edges are index pairs; you bring the drawing. Runs on JS, native and wasm-gc,
-and gives the same positions on all three for the same seed.
+and gives the same positions on all three for the same seed
+(`Simulation::new(n, seed=s)`, 1 by default).
 
 ## Install
 
