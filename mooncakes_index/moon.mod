@@ -1,6 +1,6 @@
 name = "gaato/mooncakes_index"
 
-version = "0.1.0"
+version = "0.1.1"
 
 import {
   "moonbitlang/x@0.5.8",

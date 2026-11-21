@@ -8,8 +8,11 @@ note.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-21
+
 ### Changed
 
+- **The README is rewritten**: how the current version of a module is chosen and how to read the index from disk.
 - Depends on `moonbitlang/x` 0.5.8. Native registry reads now retry
   interrupted file opens and close file handles on read errors.
 - **The README has sections and a compile-checked example.** It has Install,

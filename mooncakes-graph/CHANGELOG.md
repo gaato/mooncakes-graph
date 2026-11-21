@@ -8,8 +8,11 @@ note.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-21
+
 ### Changed
 
+- **The README is rewritten**: what each command answers and prints, and how to rank modules from the library; modules under the registry's `test` namespace are left out.
 - The command now uses `cli/core` 0.11.0 for argument parsing on native and
   Wasm.
 - The command exits through core `@env.exit`, so the module no longer

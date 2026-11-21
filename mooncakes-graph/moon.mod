@@ -1,9 +1,9 @@
 name = "gaato/mooncakes-graph"
 
-version = "0.1.1"
+version = "0.1.2"
 
 import {
-  "gaato/mooncakes_index@0.1.0",
+  "gaato/mooncakes_index@0.1.1",
   "cli/core@0.11.0",
 }
 
