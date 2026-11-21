@@ -6,9 +6,12 @@ graph, and a command-line tool that prints dependency trees like `tree(1)`.
 
 Unofficial; not affiliated with mooncakes.io or the MoonBit team.
 
+[日本語](README.ja.md)
+
 ## Web
 
-The map is rebuilt daily from the registry index. Bigger nodes have more
+[The map](https://gaato.github.io/mooncakes-graph/) is rebuilt daily from the
+registry index. Bigger nodes have more
 modules depending on them. Click a module to see what depends on it and what
 it depends on; `?m=owner/name` links straight to one.
 
@@ -42,6 +45,8 @@ The commands and the library are described in
 | `mooncakes_index/` | [`gaato/mooncakes_index`](https://mooncakes.io/docs/gaato/mooncakes_index) | A reader for the registry index |
 | `force/` | [`gaato/force`](https://mooncakes.io/docs/gaato/force) | A force-directed layout, used by the map |
 | `site/` | (not published) | The map |
+
+Bugs and requests go to [Issues](https://github.com/gaato/mooncakes-graph/issues).
 
 ## Building the site
 

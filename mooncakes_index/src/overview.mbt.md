@@ -1,11 +1,13 @@
 # gaato/mooncakes_index
 
-Reads the [mooncakes.io](https://mooncakes.io) registry index that `moon update`
-keeps at `$MOON_HOME/registry/index` (default `~/.moon/registry/index`): every
-published version of every module, with its dependencies, dates, yank state
-and what its `moon.mod` says about it.
+Read the [mooncakes.io](https://mooncakes.io) registry index that `moon update`
+keeps on your machine. It holds every published version of every module, with
+its dependencies, publication date, yank state and what its `moon.mod` says
+about it. Use it for release reports, dependency analysis, or test fixtures that
+behave like the registry. For dependency trees and rankings built on these
+records, use [`gaato/mooncakes-graph`](https://mooncakes.io/docs/gaato/mooncakes-graph).
 
-Unofficial; not affiliated with mooncakes.io or the MoonBit team.
+Unofficial, and not affiliated with mooncakes.io or the MoonBit team.
 
 ## Install
 
@@ -13,10 +15,10 @@ Unofficial; not affiliated with mooncakes.io or the MoonBit team.
 moon add gaato/mooncakes_index
 ```
 
-## Usage
+## Pick the current version of a module
 
-Each line of the index is one published version. Parse the lines of a module
-and ask which version stands for it now:
+Each line of the index is one published version, in publication order. Parse
+the lines of a module and ask which version stands for it now:
 
 ```mbt check
 ///|
@@ -36,30 +38,40 @@ test "the current version of a module" {
 }
 ```
 
-To read the whole index from disk, use the `fs` package:
+`Module::current()` returns the last version that is not yanked, in
+publication order, so a yanked 0.2.0 leaves 0.1.0 current. When every version
+is yanked, it returns the last one. For an empty history, it returns `None`.
+Publication order is not semantic-version order: use `compare_versions` and
+`release_line` (the range a version stays compatible within) for questions
+about version numbers.
+
+## Read the index from disk
+
+Run `moon update` first. The index lives at `$MOON_HOME/registry/index`
+(by default `~/.moon/registry/index`). Import `gaato/mooncakes_index/fs`, then
 `@fs.read(@fs.index_dir().unwrap())` returns every module, sorted by name.
+
+- `skipped` counts lines that could not be parsed. They are skipped rather
+  than failing the whole read.
+- `fetched_at` is when `moon update` last fetched, when known.
+- `read` raises `NotFound(dir~)` when there is no index, and
+  `Unreadable(path~, message~)` when a file cannot be read.
 
 ## Packages
 
-| Package | What it is |
-|---|---|
-| `gaato/mooncakes_index` | Records and versions; pure, runs on every backend |
-| `gaato/mooncakes_index/fs` | Reads the index directory (native, js, wasm) |
+| Package | What it is | Targets |
+|---|---|---|
+| `gaato/mooncakes_index` | Records and versions. Pure: no I/O. | Every backend |
+| `gaato/mooncakes_index/fs` | Reads the index directory | native, js, wasm |
 
-- `parse_line` reads one line of the index into a `VersionRecord`.
-- `Module::current` picks the version that stands for a module now: the last
-  one not yanked, or the last one when all are yanked.
-- `compare_versions` and `release_line` order semantic versions and give the
-  line they stay compatible within.
-- `fs.read` counts broken lines in `skipped` instead of failing, and reports
-  when `moon update` last fetched.
-
-Records are read-only; build them for tests with `VersionRecord::new`,
-`Dep::new` and `About::new`, whose optional arguments let the index grow new
-fields without breaking you.
+Records are read-only. Build them for tests with `VersionRecord::new`,
+`Dep::new` and `About::new`. Their optional arguments let the index gain new
+fields without breaking your code.
 
 ## Links
 
+- [`gaato/mooncakes-graph`](https://mooncakes.io/docs/gaato/mooncakes-graph):
+  dependency trees and rankings over these records
 - [Changelog](https://github.com/gaato/mooncakes-graph/blob/main/mooncakes_index/CHANGELOG.md)
 - [Repository](https://github.com/gaato/mooncakes-graph)
 

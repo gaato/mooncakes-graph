@@ -1,10 +1,14 @@
 # gaato/force
 
 A force-directed graph layout for MoonBit, following
-[d3-force](https://github.com/d3/d3-force). Nodes are indices `0..<n` and
-edges are index pairs; you bring the drawing. Runs on JS, native and wasm-gc,
-and gives the same positions on all three for the same seed
-(`Simulation::new(n, seed=s)`, 1 by default).
+[d3-force](https://github.com/d3/d3-force). Give it a number of nodes and
+the edges between them, and it computes positions. You bring the drawing:
+SVG, a canvas, a terminal or anything else. Nodes are indices `0..<n`, and
+edges are pairs of indices.
+
+It runs on JS, native and Wasm GC, and gives the same positions on all three
+for the same seed (`Simulation::new(n, seed=s)`, 1 by default), so a layout
+computed on a server matches one computed in a browser.
 
 ## Install
 
@@ -12,7 +16,7 @@ and gives the same positions on all three for the same seed
 moon add gaato/force
 ```
 
-## Usage
+## Lay out a graph
 
 Make a simulation of `n` nodes, add forces, and tick until it cools down:
 
@@ -32,15 +36,19 @@ test "lay out a path of three nodes" {
 }
 ```
 
+For a static picture, tick until `alpha` drops below `alpha_min`, then draw.
+For an animation, call `tick` once per frame from your render loop and redraw.
+`tick` never stops by itself, so you decide when to stop.
+
 ## Forces
 
-| constructor | d3 equivalent |
-|---|---|
-| `link(edges)` | `forceLink` |
-| `many_body()` | `forceManyBody` (Barnes–Hut) |
-| `center()` | `forceCenter` |
-| `collide()` | `forceCollide` |
-| `x()`, `y()` | `forceX`, `forceY` |
+| Constructor | What it does | d3 equivalent |
+|---|---|---|
+| `link(edges)` | Pulls connected nodes toward a distance | `forceLink` |
+| `many_body()` | Repels (or attracts) every pair, with Barnes–Hut approximation | `forceManyBody` |
+| `center()` | Keeps the layout's centre of mass in place | `forceCenter` |
+| `collide()` | Keeps nodes from overlapping | `forceCollide` |
+| `x()`, `y()` | Pulls nodes toward a coordinate on one axis | `forceX`, `forceY` |
 
 Settings that d3 lets you give per node take a `Values`: `All(v)` for every
 node, or `Each(array)` with one value per node (per link, for `link`).
@@ -56,21 +64,20 @@ test "per-node settings" {
 ```
 
 Defaults and formulas match d3's: the initial spiral layout, alpha cooling,
-velocity decay, and each force's defaults. `tick` does not stop by itself at
-`alpha_min`; check `alpha` and stop when you like.
+velocity decay and each force's defaults. Settings tuned for d3 carry over.
 
-`add_force` checks a force against the simulation and raises `ForceError`,
-installing nothing, when it does not fit: an `Each` of the wrong length, a link
-to a missing node, or a negative radius.
+`add_force` checks a force against the simulation, and raises `ForceError`
+without installing anything when it does not fit: an `Each` of the wrong
+length, a link to a missing node, or a negative radius.
 
 ## Differences from d3
 
 - Nodes are indices, not mutable objects. Read positions with `xs()` and
   `ys()`, and change them with `set_position(i, x=, y=)`,
   `set_velocity(i, vx=, vy=)` and `pin`.
-- No timer or events: call `tick` from your own loop.
-- Forces have no names or live setters. To change one, `clear_forces` and add
-  them again.
+- There is no timer and there are no events: call `tick` from your own loop.
+- Forces have no names or live setters. To change one, call `clear_forces` and
+  add them again.
 
 ## Links
 
